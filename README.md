@@ -4,7 +4,7 @@ Tools for working with [ScreenMill](http://www.rothsteinlab.com/tools/screen_mil
 
 ## Installation
 
-```
+```r
 if (!require(devtools)) install.packages('devtools')
 devtools::install_github('EricEdwardBryant/screenmill')
 ```
