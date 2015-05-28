@@ -1,0 +1,14 @@
+Package: screenmill
+Type: Package
+Title: Tools for working with ScreenMill data
+Version: 0.0.9000
+Date: 2015-05-28
+Authors@R: 'Eric Bryant <eeb2139@columbia.edu> [aut,cre]'
+Maintainer: 'Eric Bryant' <eeb2139@columbia.edu>
+Description: This package includes tools for working with solid agar colony
+  measurement screens that have been processed with ScreenMill. For more
+  information about ScreenMill, see <http://www.ncbi.nlm.nih.gov/pubmed/20584323>.
+License: GPL-3
+LazyData: TRUE
+VignetteBuilder: knitr
+Imports: R.utils, tidyr, dplyr
