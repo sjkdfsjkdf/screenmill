@@ -83,20 +83,21 @@ map_row <- function(librows, replicates, nobs) {
 # Find table header in text file
 # @param path Character; path to file.
 # @param match Regular expression used to match header line.
+# @param delim Delimiter used to split header
 #' @importFrom R.utils countLines
-find_header <- function(path, match) {
+find_header <- function(path, match, delim) {
   # Open file
   con <- file(path, open = "r")
   on.exit(close(con))
   # Find line corresponding to header
-  header <- 1
-  while (length(line <- readLines(con, n = 1, warn = FALSE)) > 0) {
-    if (grepl(match, line[[1]])) break
-    else header <- header + 1; next
+  line <- 1
+  while (length(header <- readLines(con, n = 1, warn = FALSE)) > 0) {
+    if (grepl(match, header[[1]])) break
+    else line <- line + 1; next
   }
   # Stop if the header was not found
-  stopifnot(header < R.utils::countLines(path))
-  return(header)
+  stopifnot(line < R.utils::countLines(path))
+  return(list(line = line, header = unlist(strsplit(header, delim))))
 }
 
 # Utils: new_batch_metadata ---------------------------------------------------

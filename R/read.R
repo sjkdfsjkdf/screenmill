@@ -84,8 +84,15 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
 
 read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
 
-  header <- find_header(path, match)
-  dr <- read.delim(path, skip = header - 1, stringsAsFactors = FALSE)
+  # Somtimes colnames are missing so they have to be filled in after read
+  header <- find_header(path, match, delim = '\t')
+  if (any(grepl('ID Column', header$header))) {
+    select <- header$header[1:grep('ID Column', header$header)]
+  } else {
+    select <- header$header
+  }
+  dr <- read.delim(path, header = FALSE, skip = header$line, stringsAsFactors = FALSE)
+  names(dr)[1:length(select)] <- select
 
   # Clean the data
   dr %>%
@@ -93,13 +100,13 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
     select_(
       scan_name = ~Query,
       scan_cond = ~Condition,
-      plate     = ~Plate..,
+      plate     = ~`Plate #`,
       row       = ~Row,
       column    = ~Column,
-      ~contains('Colony.Size')
+      ~contains('Colony Size')
     ) %>%
     # Gather colony size into single column
-    gather('replicate', 'size_dr', contains('Colony.Size')) %>%
+    gather('replicate', 'size_dr', contains('Colony Size')) %>%
     # Fix columns
     mutate_(
       scan_name = ~as.character(scan_name),
@@ -126,11 +133,12 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
 #' @param plates Path to plates metadata CSV
 #'
 #' @importFrom dplyr %>% left_join mutate_
+#' @importFrom data.table fread
 #' @export
 
 read_metadata <- function(screens, plates) {
-  scr <- read.csv(screens, stringsAsFactors = FALSE)
-  plt <- read.csv(plates, stringsAsFactors = FALSE)
+  scr <- fread(screens)
+  plt <- fread(plates)
 
   left_join(plt, scr) %>%
     mutate_(
