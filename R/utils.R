@@ -13,11 +13,13 @@ assign_names <- function(x, names) { colnames(x) <- names; return(x) }
 #' @importFrom dplyr %>% mutate_
 parse_names <- function(lines, by = ',') {
   do.call(rbind, strsplit(lines, by)) %>%
-    assign_names(c('name', 'numb', 'cond')) %>%
+    assign_names(c('scan_name', 'plate', 'scan_cond')) %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
     mutate_(
-      numb = ~as.integer(numb),
-      cond = ~gsub('\\.[^\\.]*$', '', cond)
+      id        = ~paste(scan_name, plate, scan_cond, sep = ','),
+      plate     = ~as.integer(plate),
+      scan_cond = ~gsub('\\.[^\\.]*$', '', scan_cond),
+      scan_cond = ~ifelse(is.na(scan_cond) | scan_cond == '', 'none', scan_cond)
     )
 }
 

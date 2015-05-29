@@ -42,17 +42,15 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
   librows <- dim[1] * sqrt(libdens / (dim[1] * dim[2]))
   libcols <- dim[2] * sqrt(libdens / (dim[1] * dim[2]))
 
-  cm %>%
+  test <- cm %>%
+    mutate_(id = ~rep(plates$id, length.out = nobs, each = density)) %>%
+    left_join(plates, by = 'id') %>%
     mutate_(
-      scan_name = ~rep(plates$name, length.out = nobs, each = density),
-      scan_cond = ~rep(plates$cond, length.out = nobs),
-      scan_cond = ~ifelse(is.na(scan_cond) | scan_cond == '', 'none', scan_cond),
-      plate     = ~rep(plates$numb, length.out = nobs, each = density),
       row       = ~map_row(librows, replicates, nobs),
       column    = ~map_column(libcols, nrows, ncols, nobs),
       replicate = ~map_replicate(librows, libcols, replicates, nobs)
     ) %>%
-    select_(~(scan_name:replicate), ~matches('size'), ~matches('circ'))
+    select_(~id, ~scan_name, ~scan_cond, ~plate, ~row, ~column, ~replicate, ~size, ~circ)
 }
 
 #------------------------------------------------------------------------------
