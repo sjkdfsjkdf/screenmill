@@ -87,15 +87,19 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
   # Somtimes colnames are missing so they have to be filled in after read
   header <- find_header(path, match, delim = '\t')
   if (any(grepl('ID Column', header$header))) {
-    select <- header$header[1:grep('ID Column', header$header)]
+    colnames <- header$header[1:grep('ID Column', header$header)]
   } else {
-    select <- header$header
+    colnames <- header$header
   }
-  dr <- read.delim(path, header = FALSE, skip = header$line, stringsAsFactors = FALSE)
-  names(dr)[1:length(select)] <- select
-
-  # Clean the data
-  dr %>%
+  dr <- (readLines(path)[-(1:header$line)]) %>%
+    # Split lines by tab
+    strsplit('\t') %>%
+    # Keep only leading columns (there are often issues with last few cols)
+    lapply(function(line, ncol = length(colnames)) line[1:ncol]) %>%
+    # Build data frame
+    do.call(rbind, .) %>%
+    assign_names(colnames) %>%
+    as.data.frame(stringsAsFactors = FALSE) %>%
     # Select and rename important columns
     select_(
       scan_name = ~Query,
