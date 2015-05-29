@@ -110,8 +110,8 @@ write_screens_csv <- function(cm) {
   readLines(cm) %>%
     grep(',', ., value = TRUE) %>%
     parse_names(by = ',') %>%
-    assign_names(c('scan_name', 'plate', 'scan_condition')) %>%
-    select_('scan_name', 'scan_condition') %>%
+    assign_names(c('scan_name', 'plate', 'scan_cond')) %>%
+    select_('scan_name', 'scan_cond') %>%
     distinct %>%
     mutate_(
       screen_name          = ~'Short descriptive name',
@@ -128,9 +128,9 @@ write_screens_csv <- function(cm) {
       temperature          = ~'Temperature (C) of final incubation',
       screen_owner         = ~'Who performed the screen',
       screen_notes         = ~'Notes regarding this screen',
-      scan_condition = ~ifelse(scan_condition == '', 'none', scan_condition),
-      screen_id = ~paste(Sys.Date(), scan_name, scan_condition, sep = '-')) %>%
-    arrange_(~scan_name, ~scan_condition) %>%
+      scan_cond            = ~ifelse(scan_cond == '', 'none', scan_cond),
+      screen_id = ~paste(Sys.Date(), scan_name, scan_cond, sep = '-')) %>%
+    arrange_(~scan_name, ~scan_cond) %>%
     select_(~screen_id, ~scan_name:screen_notes) %>%
     write.csv(file = paste0(dirpath, '/screens.csv'), row.names = FALSE)
 }
@@ -143,15 +143,15 @@ write_plates_csv <- function(cm) {
   readLines(cm) %>%
     grep(',', ., value = TRUE) %>%
     parse_names(by = ',') %>%
-    assign_names(c('scan_name', 'plate', 'scan_condition')) %>%
-    select_('scan_name', 'scan_condition', 'plate') %>%
+    assign_names(c('scan_name', 'plate', 'scan_cond')) %>%
+    select_('scan_name', 'scan_cond', 'plate') %>%
     distinct %>%
     mutate_(
       incubation_start = ~'Format: 2015-04-27 17:04:35 EDT',
       incubation_end   = ~'Format: 2015-04-27 17:04:35 EDT',
-      scan_condition = ~ifelse(scan_condition == '', 'none', scan_condition)
+      scan_cond        = ~ifelse(scan_cond == '', 'none', scan_cond)
     ) %>%
-    arrange_(~scan_name, ~scan_condition, ~plate) %>%
+    arrange_(~scan_name, ~scan_cond, ~plate) %>%
     write.csv(file = paste0(dirpath, '/plates.csv'), row.names = FALSE)
 }
 
