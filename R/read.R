@@ -114,8 +114,9 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
     # Fix columns
     mutate_(
       scan_name = ~as.character(scan_name),
-      scan_cond = ~ifelse(is.na(scan_cond), 'none', scan_cond),
+      scan_cond = ~ifelse(is.na(scan_cond) | scan_cond == '', 'none', scan_cond),
       plate     = ~as.integer(gsub('[][]', '', plate)), # remove brackets
+      column    = ~as.integer(column),
       replicate = ~as.integer(gsub('[^0-9]*', '', replicate)), # remove text
       excluded_query   = ~grepl('\\*', size_dr),
       excluded_control = ~grepl('\\^', size_dr),
@@ -124,7 +125,8 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
     # Sort the data
     arrange_(~scan_name, ~scan_cond, ~plate, ~row, ~column, ~replicate) %>%
     select_(~scan_name, ~scan_cond, ~plate, ~row, ~column, ~replicate,
-            ~size_dr, ~excluded_query, ~excluded_control)
+            ~size_dr, ~excluded_query, ~excluded_control) %>%
+    filter(complete.cases(.))
 }
 
 
