@@ -124,7 +124,7 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
     arrange_(~scan_name, ~scan_cond, ~plate, ~row, ~column, ~replicate) %>%
     select_(~scan_name, ~scan_cond, ~plate, ~row, ~column, ~replicate,
             ~size_dr, ~excluded_query, ~excluded_control) %>%
-    filter(complete.cases(.))
+    na.omit
 }
 
 
