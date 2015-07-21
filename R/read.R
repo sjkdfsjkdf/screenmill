@@ -60,6 +60,13 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
 #'
 #' @param path Path to a DR stats file. Defaults to interactive file selection.
 #' @param match regex used to find the line containing the table header.
+#' @param replicates Integer of expected number of colony replicates.
+#'
+#' @note For 16 colony replicates, data review engine numbers colonies in an
+#' inconsistent way (rowwise for the upper-left quadrant and columnwise for
+#' remaining colonies). `read_dr` translates these colony numbers to count
+#' rowwise for a 4x4 matrix to match the rowwise counting for 4 colony
+#' replicates.
 #'
 #' @return A dataframe with columns:
 #' \itemize{
@@ -72,15 +79,15 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
 #'   \item{\bold{size_dr:}} Size returned by DR engine.
 #'   \item{\bold{excluded_query:}} Whether this observation was excluded in
 #'   review.
-#'   \item{\bold{excluded_control:}} Whether this observation's control was excluded
-#'   in review.
+#'   \item{\bold{excluded_control:}} Whether this observation's control was
+#'   excluded in review.
 #' }
 #'
 #' @importFrom dplyr %>% select_ mutate_ arrange_
 #' @importFrom tidyr gather
 #' @export
 
-read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
+read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn', replicates = 4) {
 
   # Somtimes colnames are missing so they have to be filled in after read
   header <- find_header(path, match, delim = '\t')
@@ -89,6 +96,16 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
   } else {
     colnames <- header$header
   }
+
+  if (replicates == 16) {
+    # 16 replicates get mapped strangely (Data review engine weirdness)
+    replicate_map <- 1:16
+    names(replicate_map) <- c(1,2,5,6,9,10,13,14,3,4,7,8,11,12,15,16)
+  } else {
+    replicate_map <- 1:replicates
+    names(replicate_map) <- 1:replicates
+  }
+
   dr <- (readLines(path)[-(1:header$line)]) %>%
     # Split lines by tab
     strsplit('\t') %>%
@@ -108,14 +125,15 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
       ~contains('Colony Size')
     ) %>%
     # Gather colony size into single column
-    gather('replicate', 'size_dr', contains('Colony Size')) %>%
+    gather('colony_dr', 'size_dr', contains('Colony Size')) %>%
     # Fix columns
     mutate_(
       scan_name = ~as.character(scan_name),
       scan_cond = ~ifelse(is.na(scan_cond) | scan_cond == '', 'none', scan_cond),
       plate     = ~as.integer(gsub('[][]', '', plate)), # remove brackets
       column    = ~as.integer(column),
-      replicate = ~as.integer(gsub('[^0-9]*', '', replicate)), # remove text
+      colony_dr = ~as.integer(gsub('[^0-9]*', '', colony_dr)), # remove text
+      replicate = ~as.integer(names(replicate_map[colony_dr])),
       excluded_query   = ~grepl('\\*', size_dr),
       excluded_control = ~grepl('\\^', size_dr),
       size_dr   = ~as.numeric(gsub('\\*|\\^', '', size_dr)) # remove *^ flags
