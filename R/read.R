@@ -47,7 +47,7 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
     left_join(plates, by = 'id') %>%
     mutate_(
       row       = ~map_row(librows, replicates, nobs),
-      column    = ~map_column(libcols, nrows, ncols, nobs),
+      column    = ~map_column(libcols, replicates, nrows, ncols, nobs),
       replicate = ~map_replicate(librows, libcols, replicates, nobs)
     ) %>%
     select_(~id, ~scan_name, ~scan_cond, ~plate, ~row, ~column, ~replicate, ~size, ~circ)

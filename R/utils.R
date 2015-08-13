@@ -61,14 +61,18 @@ map_replicate <- function(librows, libcols, replicates, nobs) {
 
 # Map strain library column to measurements
 # @param libcols Integer; number of columns in strain library.
+# @param replicates Integer; number of strain replicates in screen.
 # @param nrows Integer; number of rows on plate.
 # @param ncols Integer; number of columns on plate.
 # @param nobs Integer; number of observations in screen.
 #' @importFrom dplyr %>%
-map_column <- function(libcols, nrows, ncols, nobs) {
+map_column <- function(libcols, replicates, nrows, ncols, nobs) {
   # map plate positions to strain library columns
-  matrix(rep(1:libcols, each = nrows * 2), nrow = nrows, ncol = ncols) %>%
-    rep(length.out = nobs)
+  matrix(
+    rep(1:libcols, each = nrows * sqrt(replicates)),
+    nrow = nrows, ncol = ncols
+  ) %>%
+  rep(length.out = nobs)
 }
 
 # Map strain library row to measurements
