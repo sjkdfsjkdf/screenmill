@@ -23,11 +23,18 @@ A dataframe with columns:
   \item{\bold{size_dr:}} Size returned by DR engine.
   \item{\bold{excluded_query:}} Whether this observation was excluded in
   review.
-  \item{\bold{excluded_control:}} Whether this observation's control was excluded
-  in review.
+  \item{\bold{excluded_control:}} Whether this observation's control was
+  excluded in review.
 }
 }
 \description{
 Reads ScreenMill Data Review tables.
+}
+\note{
+For 16 colony replicates, data review engine numbers colonies in an
+inconsistent way (rowwise for the upper-left quadrant and columnwise for
+remaining colonies). `read_dr` translates these colony numbers to count
+rowwise for a 4x4 matrix to match the rowwise counting for 4 colony
+replicates.
 }
 

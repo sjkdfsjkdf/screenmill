@@ -60,7 +60,6 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
 #'
 #' @param path Path to a DR stats file. Defaults to interactive file selection.
 #' @param match regex used to find the line containing the table header.
-#' @param replicates Integer of expected number of colony replicates.
 #'
 #' @note For 16 colony replicates, data review engine numbers colonies in an
 #' inconsistent way (rowwise for the upper-left quadrant and columnwise for
@@ -87,7 +86,7 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
 #' @importFrom tidyr gather
 #' @export
 
-read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn', replicates = 4) {
+read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
 
   # Somtimes colnames are missing so they have to be filled in after read
   header <- find_header(path, match, delim = '\t')
@@ -96,7 +95,7 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn', repl
   } else {
     colnames <- header$header
   }
-
+  replicates <- length(grep('Colony Size', colnames))
   if (replicates == 16) {
     # 16 replicates get mapped strangely (Data review engine weirdness)
     replicate_map <- 1:16
