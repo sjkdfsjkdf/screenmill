@@ -158,8 +158,8 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
 #' @export
 
 read_metadata <- function(screens, plates) {
-  scr <- fread(screens)
-  plt <- fread(plates)
+  scr <- fread(screens, data.table = FALSE)
+  plt <- fread(plates, data.table = FALSE)
 
   left_join(plt, scr) %>%
     mutate_(
