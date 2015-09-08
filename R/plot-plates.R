@@ -17,7 +17,7 @@
 #' @return A ggplot object
 #'
 #' @importFrom dplyr %>% mutate data_frame
-#' @importFrom ggplot2 ggplot geom_tile aes %+% facet_grid scale_fill_gradient2
+#' @importFrom ggplot2 ggplot geom_tile aes %+% facet_grid scale_fill_gradient2 theme element_blank coord_fixed
 #' @export
 
 
