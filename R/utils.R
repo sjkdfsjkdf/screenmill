@@ -161,7 +161,7 @@ write_plates_csv <- function(cm) {
     write.csv(file = paste0(dirpath, '/plates.csv'), row.names = FALSE)
 }
 
-# Utils for: new_strain_collection --------------------------------------------
+# Utils: new_strain_collection --------------------------------------------
 
 # Expand vector of letters
 # @param len Integer; desired length letter combinations
