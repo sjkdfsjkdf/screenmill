@@ -32,13 +32,13 @@ spatial_effect <- function(x, y, value, method = c('rlm', 'loess'), deg = 2, ...
 
   # Fit a smooth surface
   if (method[1] == 'rlm') {
-    model <- rlm(value ~ poly(x, y, deg), data = data, ...)
+    model <- rlm(value ~ poly(x, y, degree = deg), data = clean, ...)
     return(predict(model, data))
   }
 
   if (method[1] == 'loess') {
     # x and y should be on a common scale, therefore do not normalize
-    model <- loess(value ~ poly(x, y, deg), data = data, normalize = FALSE, ...)
+    model <- loess(value ~ poly(x, y, degree = deg), data = clean, normalize = FALSE, ...)
     return(predict(model, data))
   }
 }
