@@ -10,7 +10,7 @@
 
 
 
-<title>ScreenMill batch processing</title>
+<title>Recording Metadata</title>
 
 
 
@@ -51,20 +51,10 @@ code > span.er { color: #ff0000; font-weight: bold; }
 
 
 <div id="header">
-<h1 class="title">ScreenMill batch processing</h1>
+<h1 class="title">Recording Metadata</h1>
 </div>
 
 
-<div id="introduction" class="section level1">
-<h1>Introduction</h1>
-<p>This vignette describes how to process a batch of solid agar colony growth measurement screens that have been quantified and reviewed using <a href="http://www.rothsteinlab.com/tools/screen_mill/cm_engine">ScreenMill</a>’s colony measurement, and data review engines. Processing requires two steps:</p>
-<ol style="list-style-type: decimal">
-<li>Recording metadata for the screen (e.g. incubation times)</li>
-<li>Generating fully cleaned/annotated raw data and metadata for inclusion in the rothscreen database.</li>
-</ol>
-</div>
-<div id="recording-metadata" class="section level1">
-<h1>Recording metadata</h1>
 <p>First create <strong>screens.csv</strong> and <strong>plates.csv</strong> metadata tables by executing the following command. The colony measurement log file is used to generate all combinations of scan names, scan conditions, and plate numbers. If necessary, also create a custom strain collection keyfile.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Write `plates.csv` and `screens.csv` to the same directory as `cm.txt`</span>
 screenmill::<span class="kw">new_batch_metadata</span>(<span class="st">'path/to/cm.txt'</span>)
@@ -75,7 +65,7 @@ screenmill::<span class="kw">new_batch_metadata</span>(<span class="st">'path/to
 <li><strong>scan_name</strong>: Do not edit.</li>
 <li><strong>scan_condition</strong>: Do not edit.</li>
 <li><strong>plate</strong>: Do not edit.</li>
-<li><strong>incubation_start</strong>: When incubation began in YYYY-MM-DD HH:MM:SS TZ format. (i.e. the result of <code>Sys.time()</code>: 2015-05-28 13:10:24).</li>
+<li><strong>incubation_start</strong>: When incubation began in YYYY-MM-DD HH:MM:SS TZ format. (i.e. the result of <code>Sys.time()</code>: 2015-11-11 17:07:07).</li>
 <li><strong>incubation_end</strong>: When the plate was scanned in YYYY-MM-DD HH:MM:SS TZ format.</li>
 </ul>
 <p>In <strong>screens.csv</strong> fill out necessary values for each column:</p>
@@ -98,76 +88,6 @@ screenmill::<span class="kw">new_batch_metadata</span>(<span class="st">'path/to
 <li><strong>screen_owner</strong>: Name - email</li>
 <li><strong>screen_notes</strong>: miscellaneous notes about this screen.</li>
 </ul>
-</div>
-<div id="prepare-data-for-inclusion-in-database" class="section level1">
-<h1>Prepare data for inclusion in database</h1>
-<ol style="list-style-type: decimal">
-<li>Create a new Rmarkdown document with the following code chunk.</li>
-<li>Modify settings as needed.</li>
-<li>Render the document.</li>
-<li>Copy all files in resulting <code>db</code> folder to <code>rothscreen/inst/db/screens/</code></li>
-<li>Commit the added files and push updates to the repository</li>
-</ol>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">## ---- Settings: -------------------------------------------------------------
-date       &lt;-<span class="st"> 'YYYY-MM-DD'</span> <span class="co"># prepended to file name</span>
-replicates &lt;-<span class="st"> </span><span class="dv">4</span>            <span class="co"># number of replicates of each strain</span>
-cm         &lt;-<span class="st"> 'path/to/cm-engine-log.txt'</span>
-dr         &lt;-<span class="st"> 'path/to/dr-engine-all-stats.txt'</span>
-aux        &lt;-<span class="st"> 'path/to/dr-engine-auxilliary-stats.txt'</span>
-screens    &lt;-<span class="st"> 'path/to/screens-metadata.csv'</span>
-plates     &lt;-<span class="st"> 'path/to/plates-metadata.csv'</span>
-custom_strain_collection =<span class="st"> </span><span class="ot">FALSE</span> <span class="co"># or, 'path/to/strain-collection.csv'</span>
-## ----------------------------------------------------------------------------
-
-<span class="co"># Load required packagaes and connect to the database</span>
-<span class="kw">library</span>(screenmill); <span class="kw">library</span>(rothscreen); <span class="kw">library</span>(dplyr)
-db &lt;-<span class="st"> </span><span class="kw">src_rothscreen</span>()
-
-<span class="co"># Read in all required data</span>
-measurements &lt;-<span class="st"> </span><span class="kw">read_cm</span>(cm, <span class="dt">replicates =</span> replicates)
-metadata     &lt;-<span class="st"> </span><span class="kw">read_metadata</span>(screens, plates)
-exclusions   &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(<span class="kw">read_dr</span>(dr), <span class="kw">read_dr</span>(aux))
-strains      &lt;-<span class="st"> </span>db %&gt;%<span class="st"> </span><span class="kw">tbl</span>(<span class="st">'strains'</span>) %&gt;%<span class="st"> </span><span class="kw">select</span>(strain_id, strain_name) %&gt;%<span class="st"> </span>collect
-if (custom_strain_collection) {
-  collection &lt;-<span class="st"> </span><span class="kw">read.csv</span>(custom_strain_collection, <span class="dt">stringsAsFactors =</span> F)
-} else {
-  collection &lt;-<span class="st"> </span>db %&gt;%<span class="st"> </span><span class="kw">tbl</span>(<span class="st">'strain_collections'</span>) %&gt;%<span class="st"> </span>collect
-}
-
-<span class="co"># Annotate measurements with node/edge IDs, incubation time, and exlusion data</span>
-raw_colony_sizes &lt;-<span class="st"> </span>
-<span class="st">  </span>measurements %&gt;%
-<span class="st">  </span><span class="kw">left_join</span>(metadata) %&gt;%
-<span class="st">  </span><span class="kw">left_join</span>(exclusions) %&gt;%
-<span class="st">  </span><span class="kw">left_join</span>(collection) %&gt;%
-<span class="st">  </span><span class="kw">left_join</span>(strains) %&gt;%
-<span class="st">  </span><span class="kw">select</span>(
-    <span class="co"># Identification</span>
-    screen_id, strain_id, strain_name, query_id, query_name, 
-    plate, row, column, replicate,
-    <span class="co"># Measurements</span>
-    size, size_dr, circ,
-    <span class="co"># Incubation time</span>
-    timepoint, incubation, incubation_start, incubation_end,
-    <span class="co"># Exclusions and controls</span>
-    excluded_query, excluded_control, plate_control
-  )
-
-<span class="co"># Write data to disk</span>
-name           &lt;-<span class="st"> </span><span class="kw">paste</span>(<span class="st">'db'</span>, date, <span class="dt">sep =</span> <span class="st">'/'</span>)
-name_raw_sizes &lt;-<span class="st"> </span><span class="kw">paste0</span>(name, <span class="st">'-raw-colony-sizes.csv'</span>)
-name_screens   &lt;-<span class="st"> </span><span class="kw">paste0</span>(name, <span class="st">'-screens.csv'</span>)
-<span class="kw">write.csv</span>(raw_colony_sizes, name_raw_sizes, <span class="dt">row.names =</span> <span class="ot">FALSE</span>)
-<span class="kw">file.copy</span>(screens, name_screens, <span class="dt">overwrite =</span> <span class="ot">TRUE</span>)
-if (custom_strain_collection) {
-  name_collection &lt;-<span class="st"> </span><span class="kw">paste0</span>(<span class="st">'db/'</span>, <span class="kw">basename</span>(custom_strain_collection))
-  <span class="kw">file.copy</span>(custom_strain_collection, name_collection, <span class="dt">overwrite =</span> <span class="ot">TRUE</span>)
-}
-
-<span class="co"># Record session information</span>
-devtools::<span class="kw">session_info</span>()</code></pre></div>
-<!-- Links -->
-</div>
 
 
 
