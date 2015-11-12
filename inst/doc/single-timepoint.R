@@ -1,0 +1,205 @@
+## ----include = FALSE-----------------------------------------------------
+knitr::opts_chunk$set(message = F)
+
+## ----setup---------------------------------------------------------------
+# Required packages
+library(screenmill)
+library(rothfreezer)
+library(dplyr)
+
+# Settings
+date       <- '2012-08-11' # prepended to file name
+replicates <- 4            # number of replicates of each strain
+cm         <- 'examples/cm.txt'      %>% system.file(package = 'screenmill')
+dr         <- 'examples/dr.txt'      %>% system.file(package = 'screenmill')
+dr_control <- 'examples/control.txt' %>% system.file(package = 'screenmill')
+screens    <- 'examples/screens.csv' %>% system.file(package = 'screenmill')
+plates     <- 'examples/plates.csv'  %>% system.file(package = 'screenmill')
+
+# Read in all required data
+measurements <- screenmill::read_cm(cm, replicates = replicates)
+metadata     <- screenmill::read_metadata(screens, plates)
+exclusions   <- bind_rows(screenmill::read_dr(dr), screenmill::read_dr(dr_control))
+# Strain annotations are available in the rothfreezer package
+db           <- rothfreezer::src_rothfreezer()
+strains      <- db %>% tbl('strains') %>% select(strain_id, strain_name) %>% collect
+collection   <- db %>% tbl('strain_collections') %>% collect
+
+## ------------------------------------------------------------------------
+# Annotate measurements with node/edge IDs, incubation time, and exlusion data
+raw_colony_sizes <-
+  measurements %>% 
+  left_join(metadata) %>%
+  left_join(exclusions) %>%
+  left_join(collection) %>%
+  left_join(strains) %>%
+  mutate(
+    # Ensure proper variable types
+    excluded_query = as.logical(excluded_query),
+    plate_control  = as.logical(plate_control),
+    size           = as.numeric(size),
+    incubation     = as.numeric(incubation),
+    incubation_start = as.character(incubation_start),
+    incubation_end   = as.character(incubation_end),
+    row_numb       = as.numeric(factor(row)), # Convert row letters to numbers
+    # Compute colony positions
+    nrep = max(replicate),  # number of replicates
+    colony_row = ((row_numb - 1) * sqrt(nrep)) + ceiling(replicate / sqrt(nrep)),
+    colony_col = ((column   - 1) * sqrt(nrep)) + (replicate - 1 + nrep) %% sqrt(nrep) + 1
+  ) %>%
+  select(
+    # Identification
+    screen_id, control_screen_id, strain_id, strain_name, query_id, query_name, 
+    plate, row, column, colony_row, colony_col, replicate,
+    # Measurements
+    size, size_dr, circ,
+    # Incubation time
+    timepoint, incubation, incubation_start, incubation_end,
+    # Exclusions and controls
+    excluded_query, excluded_control, plate_control
+  )
+
+## ------------------------------------------------------------------------
+exclusions_marked <-
+  raw_colony_sizes %>%
+  mutate(
+    control = (screen_id == control_screen_id),
+    # Mark the following excluded observations as NA
+    size = ifelse(
+      excluded_query |         # excluded in data review
+      strain_name == 'blank' | # blank strains
+      # slow growing strains (less than 25% growth of control screen median)
+      (control & size < 0.25 * median(size[control], na.rm = T)) |
+      # MATalpha library has his border, so exclude edges
+      (row    %in% c(min(row), max(row))) |
+      (column %in% c(min(column), max(column))),
+      NA, size)
+  ) %>%
+  select(-control)
+
+## ------------------------------------------------------------------------
+edge_adjusted <-
+  # After marking exclusions
+  exclusions_marked %>%
+  # For each plate
+  group_by(query_id, query_name, plate) %>%
+  # Adjust the colony size such that
+  mutate(
+    # Outer edges
+    edge1 = colony_col %in% c(1, max(colony_col)) | 
+            colony_row %in% c(1, max(colony_row)),
+    edge2 = colony_col %in% c(2, max(colony_col) - 1) | 
+            colony_row %in% c(2, max(colony_row) - 1),
+    edge  = edge1 | edge2,
+    # Are scaled to the median of non-edge colony sizes
+    size = 
+      ifelse(
+        edge1, 
+        size * (median(size[!edge], na.rm = T) / median(size[edge1], na.rm = T)),
+      ifelse(
+        edge2,
+        size * (median(size[!edge], na.rm = T) / median(size[edge2], na.rm = T)),
+      size))
+  ) %>%
+  select(-starts_with('edge'))
+
+## ------------------------------------------------------------------------
+plate_adjusted <-
+  # After adjusting edges
+  edge_adjusted %>%
+  # For each plate
+  group_by(query_id, query_name, plate) %>%
+  # Calculate median of plate controls
+  mutate(plate_median = median(size[plate_control], na.rm = T)) %>%
+  # For each screen
+  group_by(query_id, query_name) %>%
+  # Adjust the colony size such that the plate median is scaled to screen median
+  mutate(
+    screen_median = median(size[plate_control], na.rm = T),
+    size = size * (screen_median / plate_median)
+  ) %>%
+  select(-screen_median, -plate_median)
+
+## ------------------------------------------------------------------------
+position_adjusted <-
+  # After plate adjustment
+  plate_adjusted %>%
+  # For each screen
+  group_by(query_id, query_name) %>%
+  # Re-calculate screen median
+  mutate(screen_median = median(size[plate_control], na.rm = T)) %>%
+  # For each plate
+  group_by(query_id, query_name, plate) %>%
+  # Adjust colony size to remove spatial effect
+  mutate(
+    spatial_effect = screenmill::spatial_effect(colony_row, colony_col, size),
+    size = size * (screen_median / spatial_effect)
+  ) %>%
+  select(-screen_median)
+
+## ------------------------------------------------------------------------
+normalized <-
+  # After all adjustments
+  position_adjusted %>%
+  # For each screen
+  group_by(query_id, query_name) %>%
+  # Place lower limit on size
+  mutate(
+    size = ifelse(size < 0.01, 0.01, size),
+    screen_median = median(size[plate_control], na.rm = T),
+    screen_sd     = sd(size[plate_control], na.rm = T)
+  ) %>%
+  ungroup
+
+## ------------------------------------------------------------------------
+# Select control data
+control <-
+  normalized %>%
+  filter(screen_id == control_screen_id) %>%
+  select(
+    control_screen_id, strain_id, strain_name, 
+    plate, row, column, replicate, colony_row, colony_col, 
+    size_control = size, size_control_wt = screen_median, sd_control_wt = screen_sd
+  )
+
+# Select query data
+queries <-
+  normalized %>%
+  filter(screen_id != control_screen_id) %>%
+  select(
+    screen_id, control_screen_id, strain_id:replicate, colony_row, colony_col,
+    size_query = size, size_query_wt = screen_median, sd_query_wt = screen_sd
+  )
+
+scores <-
+  left_join(queries, control) %>%
+  # Group by strain to agregate replicates
+  group_by(screen_id, strain_id, strain_name, query_id, query_name, plate, row, column) %>%
+  summarise(
+    size_query_wt   = mean(size_query_wt),
+    size_control_wt = mean(size_control_wt),
+    n_query         = length(na.omit(size_query)),
+    n_control       = length(na.omit(size_control)),
+    size_query      = mean(size_query, na.rm = T),
+    size_control    = mean(size_control, na.rm = T)
+  ) %>% ungroup %>%
+  mutate(
+    # Calculate fitness estimates.
+    Fi    = size_query_wt / size_control_wt,
+    Fj    = size_control  / size_control_wt,
+    Fij   = size_query    / size_control_wt,
+    Eij   = Fi * Fj,
+    Elogr = log2(Fij / Eij), # Centers on 0
+    Ediff = (Fij - Eij)      # Centers on 0
+  ) %>%
+  group_by(query_id, query_name) %>%
+  mutate(
+    Zlogr = (Elogr - mean(Elogr, na.rm = T)) / sd(Elogr,  na.rm = T),
+    Zdiff = (Ediff - mean(Ediff, na.rm = T)) / sd(Ediff,  na.rm = T)
+  ) %>%
+  ungroup
+
+## ----------------------------------------------------------------------------------
+options(width = 85)
+devtools::session_info()
+
