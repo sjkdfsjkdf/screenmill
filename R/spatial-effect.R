@@ -40,6 +40,7 @@ spatial_effect <- function(x, y, value, method = c('rlm', 'loess'), deg = 2, ...
     # x and y should be on a common scale, therefore do not normalize
     model <- loess(value ~ poly(x, deg) + poly(y, deg),
                    data = data, normalize = FALSE, ...)
+    model <- loess(value ~ row + col, data = data, degree = deg, normalize = FALSE, ...)
     return(predict(model, data))
   }
 }
