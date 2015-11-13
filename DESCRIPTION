@@ -1,7 +1,7 @@
 Package: screenmill
 Type: Package
 Title: Tools for working with ScreenMill data
-Version: 0.0.1.9004
+Version: 0.0.1.9005
 Date: 2015-05-28
 Authors@R: 'Eric Bryant <eeb2139@columbia.edu> [aut,cre]'
 Maintainer: 'Eric Bryant' <eeb2139@columbia.edu>

@@ -67,6 +67,8 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <li><a href="#final-normalization">Final normalization</a></li>
 </ul></li>
 <li><a href="#interaction-scores">Interaction scores</a></li>
+<li><a href="#final-review">Final Review</a></li>
+<li><a href="#write-to-file">Write to file</a></li>
 <li><a href="#session-info">Session Info</a></li>
 </ul>
 </div>
@@ -89,8 +91,8 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="kw">library</span>(dplyr)
 
 <span class="co"># Settings</span>
-date       &lt;-<span class="st"> '2012-08-11'</span> <span class="co"># prepended to file name</span>
-replicates &lt;-<span class="st"> </span><span class="dv">4</span>            <span class="co"># number of replicates of each strain</span>
+prefix     &lt;-<span class="st"> 'SPA-YYYY-MM-DD'</span> <span class="co"># prepended to file name</span>
+replicates &lt;-<span class="st"> </span><span class="dv">4</span>                <span class="co"># number of replicates of each strain</span>
 cm         &lt;-<span class="st"> 'examples/cm.txt'</span>      %&gt;%<span class="st"> </span><span class="kw">system.file</span>(<span class="dt">package =</span> <span class="st">'screenmill'</span>)
 dr         &lt;-<span class="st"> 'examples/dr.txt'</span>      %&gt;%<span class="st"> </span><span class="kw">system.file</span>(<span class="dt">package =</span> <span class="st">'screenmill'</span>)
 dr_control &lt;-<span class="st"> 'examples/control.txt'</span> %&gt;%<span class="st"> </span><span class="kw">system.file</span>(<span class="dt">package =</span> <span class="st">'screenmill'</span>)
@@ -104,7 +106,12 @@ exclusions   &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(scr
 <span class="co"># Strain annotations are available in the rothfreezer package</span>
 db           &lt;-<span class="st"> </span>rothfreezer::<span class="kw">src_rothfreezer</span>()
 strains      &lt;-<span class="st"> </span>db %&gt;%<span class="st"> </span><span class="kw">tbl</span>(<span class="st">'strains'</span>) %&gt;%<span class="st"> </span><span class="kw">select</span>(strain_id, strain_name) %&gt;%<span class="st"> </span>collect
-collection   &lt;-<span class="st"> </span>db %&gt;%<span class="st"> </span><span class="kw">tbl</span>(<span class="st">'strain_collections'</span>) %&gt;%<span class="st"> </span>collect</code></pre></div>
+collection   &lt;-<span class="st"> </span>db %&gt;%<span class="st"> </span><span class="kw">tbl</span>(<span class="st">'strain_collections'</span>) %&gt;%<span class="st"> </span>collect
+<span class="co"># Unique screens</span>
+screens &lt;-<span class="st">  </span>
+<span class="st">  </span>metadata %&gt;%<span class="st"> </span>
+<span class="st">  </span><span class="kw">select</span>(screen_id:media_id, temperature:screen_notes) %&gt;%<span class="st"> </span>
+<span class="st">  </span>distinct</code></pre></div>
 </div>
 <div id="raw-data-processing" class="section level1">
 <h1>Raw data processing</h1>
@@ -134,7 +141,7 @@ raw_colony_sizes &lt;-
     screen_id, control_screen_id, strain_id, strain_name, query_id, query_name, 
     plate, row, column, colony_row, colony_col, replicate,
     <span class="co"># Measurements</span>
-    size, size_dr, circ,
+    <span class="dt">size_raw =</span> size, size_dr, circ,
     <span class="co"># Incubation time</span>
     timepoint, incubation, incubation_start, incubation_end,
     <span class="co"># Exclusions and controls</span>
@@ -154,11 +161,11 @@ raw_colony_sizes &lt;-
       excluded_query |<span class="st">         </span><span class="co"># excluded in data review</span>
 <span class="st">      </span>strain_name ==<span class="st"> 'blank'</span> |<span class="st"> </span><span class="co"># blank strains</span>
 <span class="st">      </span><span class="co"># slow growing strains (less than 25% growth of control screen median)</span>
-<span class="st">      </span>(control &amp;<span class="st"> </span>size &lt;<span class="st"> </span><span class="fl">0.25</span> *<span class="st"> </span><span class="kw">median</span>(size[control], <span class="dt">na.rm =</span> T)) |
+<span class="st">      </span>(control &amp;<span class="st"> </span>size_raw &lt;<span class="st"> </span><span class="fl">0.25</span> *<span class="st"> </span><span class="kw">median</span>(size_raw[control], <span class="dt">na.rm =</span> T)) |
 <span class="st">      </span><span class="co"># MATalpha library has his border, so exclude edges</span>
 <span class="st">      </span>(row    %in%<span class="st"> </span><span class="kw">c</span>(<span class="kw">min</span>(row), <span class="kw">max</span>(row))) |
 <span class="st">      </span>(column %in%<span class="st"> </span><span class="kw">c</span>(<span class="kw">min</span>(column), <span class="kw">max</span>(column))),
-      <span class="ot">NA</span>, size)
+      <span class="ot">NA</span>, size_raw)
   ) %&gt;%
 <span class="st">  </span><span class="kw">select</span>(-control)</code></pre></div>
 </div>
@@ -288,7 +295,17 @@ scores &lt;-
     <span class="dt">Zlogr =</span> (Elogr -<span class="st"> </span><span class="kw">mean</span>(Elogr, <span class="dt">na.rm =</span> T)) /<span class="st"> </span><span class="kw">sd</span>(Elogr,  <span class="dt">na.rm =</span> T),
     <span class="dt">Zdiff =</span> (Ediff -<span class="st"> </span><span class="kw">mean</span>(Ediff, <span class="dt">na.rm =</span> T)) /<span class="st"> </span><span class="kw">sd</span>(Ediff,  <span class="dt">na.rm =</span> T)
   ) %&gt;%
-<span class="st">  </span>ungroup</code></pre></div>
+<span class="st">  </span>ungroup %&gt;%
+<span class="st">  </span><span class="kw">filter</span>(<span class="kw">complete.cases</span>(.))</code></pre></div>
+</div>
+<div id="final-review" class="section level1">
+<h1>Final Review</h1>
+</div>
+<div id="write-to-file" class="section level1">
+<h1>Write to file</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">normalized %&gt;%<span class="st"> </span><span class="kw">write.csv</span>(<span class="kw">paste0</span>(prefix, <span class="st">'-colony-sizes.csv'</span>), <span class="dt">row.names =</span> <span class="ot">FALSE</span>)
+scores     %&gt;%<span class="st"> </span><span class="kw">write.csv</span>(<span class="kw">paste0</span>(prefix, <span class="st">'-scores.csv'</span>, <span class="dt">row.names =</span> <span class="ot">FALSE</span>))
+screens    %&gt;%<span class="st"> </span><span class="kw">write.csv</span>(<span class="kw">paste0</span>(prefix, <span class="st">'-screens.csv'</span>, <span class="dt">row.names =</span> <span class="ot">FALSE</span>))</code></pre></div>
 </div>
 <div id="session-info" class="section level1">
 <h1>Session Info</h1>
@@ -319,6 +336,7 @@ devtools::<span class="kw">session_info</span>()</code></pre></div>
 ##  git2r         0.11.0     2015-08-12 CRAN (R 3.2.0)                               
 ##  gtable        0.1.2      2012-12-05 CRAN (R 3.2.0)                               
 ##  htmltools     0.2.6      2014-09-08 CRAN (R 3.2.0)                               
+##  httr          1.0.0      2015-06-25 CRAN (R 3.2.0)                               
 ##  knitr         1.11       2015-08-14 CRAN (R 3.2.1)                               
 ##  lazyeval      0.1.10     2015-01-02 CRAN (R 3.2.0)                               
 ##  magrittr      1.5        2014-11-22 CRAN (R 3.2.0)                               
@@ -338,7 +356,7 @@ devtools::<span class="kw">session_info</span>()</code></pre></div>
 ##  RSQLite       1.0.0      2014-10-25 CRAN (R 3.2.0)                               
 ##  rversions     1.0.2      2015-07-13 CRAN (R 3.2.0)                               
 ##  scales        0.3.0      2015-08-25 CRAN (R 3.2.0)                               
-##  screenmill  * 0.0.1.9002 2015-11-10 Github (ericedwardbryant/screenmill@f6e8b74) 
+##  screenmill  * 0.0.1.9004 2015-11-13 Github (ericedwardbryant/screenmill@63fbd6e) 
 ##  stringi       1.0-1      2015-10-22 CRAN (R 3.2.0)                               
 ##  stringr       1.0.0      2015-04-30 CRAN (R 3.2.0)                               
 ##  tidyr         0.3.1      2015-09-10 CRAN (R 3.2.0)                               

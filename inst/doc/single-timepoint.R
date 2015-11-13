@@ -8,8 +8,8 @@ library(rothfreezer)
 library(dplyr)
 
 # Settings
-date       <- '2012-08-11' # prepended to file name
-replicates <- 4            # number of replicates of each strain
+prefix     <- 'SPA-YYYY-MM-DD' # prepended to file name
+replicates <- 4                # number of replicates of each strain
 cm         <- 'examples/cm.txt'      %>% system.file(package = 'screenmill')
 dr         <- 'examples/dr.txt'      %>% system.file(package = 'screenmill')
 dr_control <- 'examples/control.txt' %>% system.file(package = 'screenmill')
@@ -24,6 +24,11 @@ exclusions   <- bind_rows(screenmill::read_dr(dr), screenmill::read_dr(dr_contro
 db           <- rothfreezer::src_rothfreezer()
 strains      <- db %>% tbl('strains') %>% select(strain_id, strain_name) %>% collect
 collection   <- db %>% tbl('strain_collections') %>% collect
+# Unique screens
+screens <-  
+  metadata %>% 
+  select(screen_id:media_id, temperature:screen_notes) %>% 
+  distinct
 
 ## ------------------------------------------------------------------------
 # Annotate measurements with node/edge IDs, incubation time, and exlusion data
@@ -52,7 +57,7 @@ raw_colony_sizes <-
     screen_id, control_screen_id, strain_id, strain_name, query_id, query_name, 
     plate, row, column, colony_row, colony_col, replicate,
     # Measurements
-    size, size_dr, circ,
+    size_raw = size, size_dr, circ,
     # Incubation time
     timepoint, incubation, incubation_start, incubation_end,
     # Exclusions and controls
@@ -69,11 +74,11 @@ exclusions_marked <-
       excluded_query |         # excluded in data review
       strain_name == 'blank' | # blank strains
       # slow growing strains (less than 25% growth of control screen median)
-      (control & size < 0.25 * median(size[control], na.rm = T)) |
+      (control & size_raw < 0.25 * median(size_raw[control], na.rm = T)) |
       # MATalpha library has his border, so exclude edges
       (row    %in% c(min(row), max(row))) |
       (column %in% c(min(column), max(column))),
-      NA, size)
+      NA, size_raw)
   ) %>%
   select(-control)
 
@@ -197,7 +202,13 @@ scores <-
     Zlogr = (Elogr - mean(Elogr, na.rm = T)) / sd(Elogr,  na.rm = T),
     Zdiff = (Ediff - mean(Ediff, na.rm = T)) / sd(Ediff,  na.rm = T)
   ) %>%
-  ungroup
+  ungroup %>%
+  filter(complete.cases(.))
+
+## ----eval = FALSE--------------------------------------------------------
+#  normalized %>% write.csv(paste0(prefix, '-colony-sizes.csv'), row.names = FALSE)
+#  scores     %>% write.csv(paste0(prefix, '-scores.csv', row.names = FALSE))
+#  screens    %>% write.csv(paste0(prefix, '-screens.csv', row.names = FALSE))
 
 ## ----------------------------------------------------------------------------------
 options(width = 85)
