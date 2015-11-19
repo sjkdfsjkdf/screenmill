@@ -1,21 +1,24 @@
 ## ----include = FALSE-----------------------------------------------------
 knitr::opts_chunk$set(message = F)
 
-## ----setup---------------------------------------------------------------
+## ----settings------------------------------------------------------------
+# Settings
+prefix     <- 'SPA-YYYY-MM-DD' # prepended to file name
+replicates <- 4                # number of replicates of each strain
+cm         <- system.file('examples/cm.txt', package = 'screenmill')
+dr         <- system.file('examples/dr.txt', package = 'screenmill')
+dr_control <- system.file('examples/control.txt', package = 'screenmill')
+screens    <- system.file('examples/screens.csv', package = 'screenmill')
+plates     <- system.file('examples/plates.csv', package = 'screenmill')
+
+## ----packages------------------------------------------------------------
 # Required packages
+library(DT)
 library(screenmill)
 library(rothfreezer)
 library(dplyr)
 
-# Settings
-prefix     <- 'SPA-YYYY-MM-DD' # prepended to file name
-replicates <- 4                # number of replicates of each strain
-cm         <- 'examples/cm.txt'      %>% system.file(package = 'screenmill')
-dr         <- 'examples/dr.txt'      %>% system.file(package = 'screenmill')
-dr_control <- 'examples/control.txt' %>% system.file(package = 'screenmill')
-screens    <- 'examples/screens.csv' %>% system.file(package = 'screenmill')
-plates     <- 'examples/plates.csv'  %>% system.file(package = 'screenmill')
-
+## ------------------------------------------------------------------------
 # Read in all required data
 measurements <- screenmill::read_cm(cm, replicates = replicates)
 metadata     <- screenmill::read_metadata(screens, plates)
@@ -205,10 +208,37 @@ scores <-
   ungroup %>%
   filter(complete.cases(.))
 
+## ----echo = FALSE--------------------------------------------------------
+screens %>%
+  select(
+    screen_id, query_id, query_name, strain_collection_id, method_id, 
+    media_id, temperature, screen_description
+  ) %>%
+  datatable
+
+## ----echo = FALSE, message = TRUE----------------------------------------
+# How many incomplete cases are there?
+if (nrow(raw_colony_sizes) - nrow(na.omit(raw_colony_sizes))) {
+  warning(paste0(
+    'NA values were present after annotating measurements. ',
+    'Check the CM engine, plates, and screens files for missing data.'))
+} else {
+  message('Annotated measurements are not missing any data.')
+}
+
+# Is there a difference in the number of measurements and the final dataset?
+if (nrow(measurements) - nrow(raw_colony_sizes)) {
+  warning(paste0(
+    'The number of measurements does not match the number of annotated measurements. ',
+    'Check for proper measurement annotation.'))
+} else {
+  message('Measurements have uniquely mapped to annotations.')
+}
+
 ## ----eval = FALSE--------------------------------------------------------
 #  normalized %>% write.csv(paste0(prefix, '-colony-sizes.csv'), row.names = FALSE)
-#  scores     %>% write.csv(paste0(prefix, '-scores.csv', row.names = FALSE))
-#  screens    %>% write.csv(paste0(prefix, '-screens.csv', row.names = FALSE))
+#  scores     %>% write.csv(paste0(prefix, '-scores.csv'), row.names = FALSE)
+#  screens    %>% write.csv(paste0(prefix, '-screens.csv'), row.names = FALSE)
 
 ## ----------------------------------------------------------------------------------
 options(width = 85)
