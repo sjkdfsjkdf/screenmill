@@ -97,8 +97,8 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <div id="setup-and-requirements" class="section level1">
 <h1>Setup and Requirements</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Settings</span>
-prefix     &lt;-<span class="st"> 'SPA-YYYY-MM-DD'</span> <span class="co"># prepended to file name</span>
-replicates &lt;-<span class="st"> </span><span class="dv">4</span>                <span class="co"># number of replicates of each strain</span>
+prefix     &lt;-<span class="st"> 'db/SPA-YYYY-MM-DD'</span> <span class="co"># prepended to file name</span>
+replicates &lt;-<span class="st"> </span><span class="dv">4</span>                   <span class="co"># number of replicates of each strain</span>
 cm         &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">'examples/cm.txt'</span>, <span class="dt">package =</span> <span class="st">'screenmill'</span>)
 dr         &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">'examples/dr.txt'</span>, <span class="dt">package =</span> <span class="st">'screenmill'</span>)
 dr_control &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">'examples/control.txt'</span>, <span class="dt">package =</span> <span class="st">'screenmill'</span>)
@@ -312,8 +312,8 @@ scores &lt;-
 <h1>Final Review</h1>
 <div id="screens" class="section level2">
 <h2>Screens</h2>
-<p><div id="htmlwidget-7778" style="width:100%;height:auto;" class="datatables"></div>
-<script type="application/json" data-for="htmlwidget-7778">{"x":{"data":[["1","2","3","4"],["2012-07-27-alpha-pWJ1781","2012-07-27-alpha-AIM25","2012-07-27-alpha-AKR2","2012-07-27-alpha-BUR6"],["pWJ1781","pWJ2083","pWJ2081","pWJ2082"],["GAL1p-Vector","GAL1p-AIM25","GAL1p-AKR2","GAL1p-BUR6"],["MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb"],["SPA","SPA","SPA","SPA"],["SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA"],[30,30,30,30],["SDL screen of empty GAL1p vector. A donor strain (W8164-2C) was used to pair an empty vector (pWJ1781) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AIM25. A donor strain (W8164-2C) was used to pair GAL1p-AIM25 (pWJ2083) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AKR2. A donor strain (W8164-2C) was used to pair GAL1p-AKR2 (pWJ2081) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of BUR6. A donor strain (W8164-2C) was used to pair GAL1p-BUR6 (pWJ2082) to the MATalpha KanMX gene disruption collection."]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> </th>\n      <th>screen_id</th>\n      <th>query_id</th>\n      <th>query_name</th>\n      <th>strain_collection_id</th>\n      <th>method_id</th>\n      <th>media_id</th>\n      <th>temperature</th>\n      <th>screen_description</th>\n    </tr>\n  </thead>\n</table>","options":{"columnDefs":[{"className":"dt-right","targets":7},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false},"callback":null,"filter":"none"},"evals":[]}</script></p>
+<p><div id="htmlwidget-2923" style="width:100%;height:auto;" class="datatables"></div>
+<script type="application/json" data-for="htmlwidget-2923">{"x":{"data":[["1","2","3","4"],["2012-07-27-alpha-pWJ1781","2012-07-27-alpha-AIM25","2012-07-27-alpha-AKR2","2012-07-27-alpha-BUR6"],["pWJ1781","pWJ2083","pWJ2081","pWJ2082"],["GAL1p-Vector","GAL1p-AIM25","GAL1p-AKR2","GAL1p-BUR6"],["MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb"],["SPA","SPA","SPA","SPA"],["SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA"],[30,30,30,30],["SDL screen of empty GAL1p vector. A donor strain (W8164-2C) was used to pair an empty vector (pWJ1781) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AIM25. A donor strain (W8164-2C) was used to pair GAL1p-AIM25 (pWJ2083) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AKR2. A donor strain (W8164-2C) was used to pair GAL1p-AKR2 (pWJ2081) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of BUR6. A donor strain (W8164-2C) was used to pair GAL1p-BUR6 (pWJ2082) to the MATalpha KanMX gene disruption collection."]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> </th>\n      <th>screen_id</th>\n      <th>query_id</th>\n      <th>query_name</th>\n      <th>strain_collection_id</th>\n      <th>method_id</th>\n      <th>media_id</th>\n      <th>temperature</th>\n      <th>screen_description</th>\n    </tr>\n  </thead>\n</table>","options":{"columnDefs":[{"className":"dt-right","targets":7},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false},"callback":null,"filter":"none"},"evals":[]}</script></p>
 </div>
 <div id="tests" class="section level2">
 <h2>Tests</h2>
@@ -323,7 +323,7 @@ scores &lt;-
 </div>
 <div id="write-to-file" class="section level1">
 <h1>Write to file</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">normalized %&gt;%<span class="st"> </span><span class="kw">write.csv</span>(<span class="kw">paste0</span>(prefix, <span class="st">'-colony-sizes.csv'</span>), <span class="dt">row.names =</span> <span class="ot">FALSE</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">normalized %&gt;%<span class="st"> </span><span class="kw">write.csv</span>(<span class="kw">paste0</span>(prefix, <span class="st">'-measurements.csv'</span>), <span class="dt">row.names =</span> <span class="ot">FALSE</span>)
 scores     %&gt;%<span class="st"> </span><span class="kw">write.csv</span>(<span class="kw">paste0</span>(prefix, <span class="st">'-scores.csv'</span>), <span class="dt">row.names =</span> <span class="ot">FALSE</span>)
 screens    %&gt;%<span class="st"> </span><span class="kw">write.csv</span>(<span class="kw">paste0</span>(prefix, <span class="st">'-screens.csv'</span>), <span class="dt">row.names =</span> <span class="ot">FALSE</span>)</code></pre></div>
 </div>
@@ -339,52 +339,52 @@ devtools::<span class="kw">session_info</span>()</code></pre></div>
 ##  collate  en_US.UTF-8                 
 ##  tz       America/New_York            
 ## 
-##  package     * version    date       source                                       
-##  assertthat    0.1        2013-12-06 CRAN (R 3.2.0)                               
-##  chron         2.3-47     2015-06-24 CRAN (R 3.2.0)                               
-##  colorspace    1.2-6      2015-03-11 CRAN (R 3.2.0)                               
-##  curl          0.9.3      2015-08-25 CRAN (R 3.2.0)                               
-##  data.table    1.9.6      2015-09-19 CRAN (R 3.2.0)                               
-##  DBI           0.3.1      2014-09-24 CRAN (R 3.2.0)                               
-##  devtools      1.8.0      2015-05-09 CRAN (R 3.2.0)                               
-##  digest        0.6.8      2014-12-31 CRAN (R 3.2.0)                               
-##  dplyr       * 0.4.3      2015-09-01 CRAN (R 3.2.0)                               
-##  DT          * 0.1        2015-06-09 CRAN (R 3.2.0)                               
-##  easydb        0.1.1      2015-06-23 Github (ericedwardbryant/easydb@a8ea396)     
-##  evaluate      0.8        2015-09-18 CRAN (R 3.2.0)                               
-##  formatR       1.2.1      2015-09-18 CRAN (R 3.2.0)                               
-##  ggplot2       1.0.1      2015-03-17 CRAN (R 3.2.0)                               
-##  git2r         0.11.0     2015-08-12 CRAN (R 3.2.0)                               
-##  gtable        0.1.2      2012-12-05 CRAN (R 3.2.0)                               
-##  htmltools     0.2.6      2014-09-08 CRAN (R 3.2.0)                               
-##  htmlwidgets   0.5        2015-06-21 CRAN (R 3.2.0)                               
-##  jsonlite      0.9.16     2015-04-11 CRAN (R 3.2.0)                               
-##  knitr         1.11       2015-08-14 CRAN (R 3.2.1)                               
-##  lazyeval      0.1.10     2015-01-02 CRAN (R 3.2.0)                               
-##  magrittr      1.5        2014-11-22 CRAN (R 3.2.0)                               
-##  MASS          7.3-43     2015-07-16 CRAN (R 3.2.2)                               
-##  memoise       0.2.1      2014-04-22 CRAN (R 3.2.0)                               
-##  munsell       0.4.2      2013-07-11 CRAN (R 3.2.0)                               
-##  plyr          1.8.3      2015-06-12 CRAN (R 3.2.0)                               
-##  proto         0.3-10     2012-12-22 CRAN (R 3.2.0)                               
-##  R.methodsS3   1.7.0      2015-02-20 CRAN (R 3.2.0)                               
-##  R.oo          1.19.0     2015-02-28 CRAN (R 3.2.0)                               
-##  R.utils       2.1.0      2015-05-28 CRAN (R 3.2.0)                               
-##  R6            2.1.1      2015-08-19 CRAN (R 3.2.0)                               
-##  Rcpp          0.12.2     2015-11-15 CRAN (R 3.2.2)                               
-##  reshape2      1.4.1      2014-12-06 CRAN (R 3.2.0)                               
-##  rmarkdown     0.8.1      2015-10-10 CRAN (R 3.2.1)                               
-##  rothfreezer * 0.0.1      2015-11-10 Github (ericedwardbryant/rothfreezer@4f131a9)
-##  RSQLite       1.0.0      2014-10-25 CRAN (R 3.2.0)                               
-##  rstudioapi    0.3.1      2015-04-07 CRAN (R 3.2.0)                               
-##  rversions     1.0.2      2015-07-13 CRAN (R 3.2.0)                               
-##  scales        0.3.0      2015-08-25 CRAN (R 3.2.0)                               
-##  screenmill  * 0.0.1.9005 2015-11-19 Github (ericedwardbryant/screenmill@366db9e) 
-##  stringi       1.0-1      2015-10-22 CRAN (R 3.2.0)                               
-##  stringr       1.0.0      2015-04-30 CRAN (R 3.2.0)                               
-##  tidyr         0.3.1      2015-09-10 CRAN (R 3.2.0)                               
-##  xml2          0.1.2      2015-09-01 CRAN (R 3.2.0)                               
-##  yaml          2.1.13     2014-06-12 CRAN (R 3.2.0)</code></pre>
+##  package     * version date       source                                       
+##  assertthat    0.1     2013-12-06 CRAN (R 3.2.0)                               
+##  chron         2.3-47  2015-06-24 CRAN (R 3.2.0)                               
+##  colorspace    1.2-6   2015-03-11 CRAN (R 3.2.0)                               
+##  curl          0.9.3   2015-08-25 CRAN (R 3.2.0)                               
+##  data.table    1.9.6   2015-09-19 CRAN (R 3.2.0)                               
+##  DBI           0.3.1   2014-09-24 CRAN (R 3.2.0)                               
+##  devtools      1.8.0   2015-05-09 CRAN (R 3.2.0)                               
+##  digest        0.6.8   2014-12-31 CRAN (R 3.2.0)                               
+##  dplyr       * 0.4.3   2015-09-01 CRAN (R 3.2.0)                               
+##  DT          * 0.1     2015-06-09 CRAN (R 3.2.0)                               
+##  easydb        0.1.1   2015-06-23 Github (ericedwardbryant/easydb@a8ea396)     
+##  evaluate      0.8     2015-09-18 CRAN (R 3.2.0)                               
+##  formatR       1.2.1   2015-09-18 CRAN (R 3.2.0)                               
+##  ggplot2       1.0.1   2015-03-17 CRAN (R 3.2.0)                               
+##  git2r         0.11.0  2015-08-12 CRAN (R 3.2.0)                               
+##  gtable        0.1.2   2012-12-05 CRAN (R 3.2.0)                               
+##  htmltools     0.2.6   2014-09-08 CRAN (R 3.2.0)                               
+##  htmlwidgets   0.5     2015-06-21 CRAN (R 3.2.0)                               
+##  jsonlite      0.9.16  2015-04-11 CRAN (R 3.2.0)                               
+##  knitr         1.11    2015-08-14 CRAN (R 3.2.1)                               
+##  lazyeval      0.1.10  2015-01-02 CRAN (R 3.2.0)                               
+##  magrittr      1.5     2014-11-22 CRAN (R 3.2.0)                               
+##  MASS          7.3-43  2015-07-16 CRAN (R 3.2.2)                               
+##  memoise       0.2.1   2014-04-22 CRAN (R 3.2.0)                               
+##  munsell       0.4.2   2013-07-11 CRAN (R 3.2.0)                               
+##  plyr          1.8.3   2015-06-12 CRAN (R 3.2.0)                               
+##  proto         0.3-10  2012-12-22 CRAN (R 3.2.0)                               
+##  R.methodsS3   1.7.0   2015-02-20 CRAN (R 3.2.0)                               
+##  R.oo          1.19.0  2015-02-28 CRAN (R 3.2.0)                               
+##  R.utils       2.1.0   2015-05-28 CRAN (R 3.2.0)                               
+##  R6            2.1.1   2015-08-19 CRAN (R 3.2.0)                               
+##  Rcpp          0.12.2  2015-11-15 CRAN (R 3.2.2)                               
+##  reshape2      1.4.1   2014-12-06 CRAN (R 3.2.0)                               
+##  rmarkdown     0.8.1   2015-10-10 CRAN (R 3.2.1)                               
+##  rothfreezer * 0.0.1   2015-11-10 Github (ericedwardbryant/rothfreezer@4f131a9)
+##  RSQLite       1.0.0   2014-10-25 CRAN (R 3.2.0)                               
+##  rstudioapi    0.3.1   2015-04-07 CRAN (R 3.2.0)                               
+##  rversions     1.0.2   2015-07-13 CRAN (R 3.2.0)                               
+##  scales        0.3.0   2015-08-25 CRAN (R 3.2.0)                               
+##  screenmill  * 0.0.2   2015-11-19 Github (ericedwardbryant/screenmill@2619963) 
+##  stringi       1.0-1   2015-10-22 CRAN (R 3.2.0)                               
+##  stringr       1.0.0   2015-04-30 CRAN (R 3.2.0)                               
+##  tidyr         0.3.1   2015-09-10 CRAN (R 3.2.0)                               
+##  xml2          0.1.2   2015-09-01 CRAN (R 3.2.0)                               
+##  yaml          2.1.13  2014-06-12 CRAN (R 3.2.0)</code></pre>
 <!-- Links -->
 </div>
 

@@ -3,8 +3,8 @@ knitr::opts_chunk$set(message = F)
 
 ## ----settings------------------------------------------------------------
 # Settings
-prefix     <- 'SPA-YYYY-MM-DD' # prepended to file name
-replicates <- 4                # number of replicates of each strain
+prefix     <- 'db/SPA-YYYY-MM-DD' # prepended to file name
+replicates <- 4                   # number of replicates of each strain
 cm         <- system.file('examples/cm.txt', package = 'screenmill')
 dr         <- system.file('examples/dr.txt', package = 'screenmill')
 dr_control <- system.file('examples/control.txt', package = 'screenmill')
@@ -236,7 +236,7 @@ if (nrow(measurements) - nrow(raw_colony_sizes)) {
 }
 
 ## ----eval = FALSE--------------------------------------------------------
-#  normalized %>% write.csv(paste0(prefix, '-colony-sizes.csv'), row.names = FALSE)
+#  normalized %>% write.csv(paste0(prefix, '-measurements.csv'), row.names = FALSE)
 #  scores     %>% write.csv(paste0(prefix, '-scores.csv'), row.names = FALSE)
 #  screens    %>% write.csv(paste0(prefix, '-screens.csv'), row.names = FALSE)
 
