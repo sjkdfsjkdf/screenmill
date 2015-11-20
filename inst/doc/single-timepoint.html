@@ -99,6 +99,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Settings</span>
 prefix     &lt;-<span class="st"> 'db/SPA-YYYY-MM-DD'</span> <span class="co"># prepended to file name</span>
 replicates &lt;-<span class="st"> </span><span class="dv">4</span>                   <span class="co"># number of replicates of each strain</span>
+density    &lt;-<span class="st"> </span><span class="dv">1536</span>                <span class="co"># plate density</span>
 cm         &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">'examples/cm.txt'</span>, <span class="dt">package =</span> <span class="st">'screenmill'</span>)
 dr         &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">'examples/dr.txt'</span>, <span class="dt">package =</span> <span class="st">'screenmill'</span>)
 dr_control &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">'examples/control.txt'</span>, <span class="dt">package =</span> <span class="st">'screenmill'</span>)
@@ -184,8 +185,8 @@ raw_colony_sizes &lt;-
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">edge_adjusted &lt;-
 <span class="st">  </span><span class="co"># After marking exclusions</span>
 <span class="st">  </span>exclusions_marked %&gt;%
-<span class="st">  </span><span class="co"># For each plate</span>
-<span class="st">  </span><span class="kw">group_by</span>(query_id, query_name, plate) %&gt;%
+<span class="st">  </span><span class="co"># For each plate at a given timepoint</span>
+<span class="st">  </span><span class="kw">group_by</span>(screen_id, timepoint, plate) %&gt;%
 <span class="st">  </span><span class="co"># Adjust the colony size such that</span>
 <span class="st">  </span><span class="kw">mutate</span>(
     <span class="co"># Outer edges</span>
@@ -211,12 +212,12 @@ raw_colony_sizes &lt;-
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">plate_adjusted &lt;-
 <span class="st">  </span><span class="co"># After adjusting edges</span>
 <span class="st">  </span>edge_adjusted %&gt;%
-<span class="st">  </span><span class="co"># For each plate</span>
-<span class="st">  </span><span class="kw">group_by</span>(query_id, query_name, plate) %&gt;%
+<span class="st">  </span><span class="co"># For each plate at a given timepoint</span>
+<span class="st">  </span><span class="kw">group_by</span>(screen_id, timepoint, plate) %&gt;%
 <span class="st">  </span><span class="co"># Calculate median of plate controls</span>
 <span class="st">  </span><span class="kw">mutate</span>(<span class="dt">plate_median =</span> <span class="kw">median</span>(size[plate_control], <span class="dt">na.rm =</span> T)) %&gt;%
-<span class="st">  </span><span class="co"># For each screen</span>
-<span class="st">  </span><span class="kw">group_by</span>(query_id, query_name) %&gt;%
+<span class="st">  </span><span class="co"># For each screen at a given timepoint</span>
+<span class="st">  </span><span class="kw">group_by</span>(screen_id, timepoint) %&gt;%
 <span class="st">  </span><span class="co"># Adjust the colony size such that the plate median is scaled to screen median</span>
 <span class="st">  </span><span class="kw">mutate</span>(
     <span class="dt">screen_median =</span> <span class="kw">median</span>(size[plate_control], <span class="dt">na.rm =</span> T),
@@ -229,12 +230,12 @@ raw_colony_sizes &lt;-
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">position_adjusted &lt;-
 <span class="st">  </span><span class="co"># After plate adjustment</span>
 <span class="st">  </span>plate_adjusted %&gt;%
-<span class="st">  </span><span class="co"># For each screen</span>
-<span class="st">  </span><span class="kw">group_by</span>(query_id, query_name) %&gt;%
+<span class="st">  </span><span class="co"># For each screen at a given timepoint</span>
+<span class="st">  </span><span class="kw">group_by</span>(screen_id, timepoint) %&gt;%
 <span class="st">  </span><span class="co"># Re-calculate screen median</span>
 <span class="st">  </span><span class="kw">mutate</span>(<span class="dt">screen_median =</span> <span class="kw">median</span>(size[plate_control], <span class="dt">na.rm =</span> T)) %&gt;%
-<span class="st">  </span><span class="co"># For each plate</span>
-<span class="st">  </span><span class="kw">group_by</span>(query_id, query_name, plate) %&gt;%
+<span class="st">  </span><span class="co"># For each plate at a given timepoint</span>
+<span class="st">  </span><span class="kw">group_by</span>(screen_id, timepoint, plate) %&gt;%
 <span class="st">  </span><span class="co"># Adjust colony size to remove spatial effect</span>
 <span class="st">  </span><span class="kw">mutate</span>(
     <span class="dt">spatial_effect =</span> screenmill::<span class="kw">spatial_effect</span>(colony_row, colony_col, size),
@@ -247,8 +248,8 @@ raw_colony_sizes &lt;-
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">normalized &lt;-
 <span class="st">  </span><span class="co"># After all adjustments</span>
 <span class="st">  </span>position_adjusted %&gt;%
-<span class="st">  </span><span class="co"># For each screen</span>
-<span class="st">  </span><span class="kw">group_by</span>(query_id, query_name) %&gt;%
+<span class="st">  </span><span class="co"># For each screen at a given timepoint</span>
+<span class="st">  </span><span class="kw">group_by</span>(screen_id, timepoint) %&gt;%
 <span class="st">  </span><span class="co"># Place lower limit on size</span>
 <span class="st">  </span><span class="kw">mutate</span>(
     <span class="dt">size =</span> <span class="kw">ifelse</span>(size &lt;<span class="st"> </span><span class="fl">0.01</span>, <span class="fl">0.01</span>, size),
@@ -265,9 +266,11 @@ control &lt;-
 <span class="st">  </span>normalized %&gt;%
 <span class="st">  </span><span class="kw">filter</span>(screen_id ==<span class="st"> </span>control_screen_id) %&gt;%
 <span class="st">  </span><span class="kw">select</span>(
-    control_screen_id, strain_id, strain_name, 
+    control_screen_id, timepoint, strain_id, strain_name, 
     plate, row, column, replicate, colony_row, colony_col, 
-    <span class="dt">size_control =</span> size, <span class="dt">size_control_wt =</span> screen_median, <span class="dt">sd_control_wt =</span> screen_sd
+    <span class="dt">size_control    =</span> size, 
+    <span class="dt">size_control_wt =</span> screen_median, 
+    <span class="dt">sd_control_wt   =</span> screen_sd
   )
 
 <span class="co"># Select query data</span>
@@ -275,14 +278,20 @@ queries &lt;-
 <span class="st">  </span>normalized %&gt;%
 <span class="st">  </span><span class="kw">filter</span>(screen_id !=<span class="st"> </span>control_screen_id) %&gt;%
 <span class="st">  </span><span class="kw">select</span>(
-    screen_id, control_screen_id, strain_id:replicate, colony_row, colony_col,
-    <span class="dt">size_query =</span> size, <span class="dt">size_query_wt =</span> screen_median, <span class="dt">sd_query_wt =</span> screen_sd
+    screen_id, timepoint, control_screen_id, strain_id:replicate, 
+    colony_row, colony_col, 
+    <span class="dt">size_query    =</span> size, 
+    <span class="dt">size_query_wt =</span> screen_median, 
+    <span class="dt">sd_query_wt   =</span> screen_sd
   )
 
 scores &lt;-
 <span class="st">  </span><span class="kw">left_join</span>(queries, control) %&gt;%
 <span class="st">  </span><span class="co"># Group by strain to agregate replicates</span>
-<span class="st">  </span><span class="kw">group_by</span>(screen_id, strain_id, strain_name, query_id, query_name, plate, row, column) %&gt;%
+<span class="st">  </span><span class="kw">group_by</span>(
+    screen_id, timepoint, strain_id, strain_name, query_id, query_name, 
+    plate, row, column
+  ) %&gt;%
 <span class="st">  </span><span class="kw">summarise</span>(
     <span class="dt">size_query_wt   =</span> <span class="kw">mean</span>(size_query_wt),
     <span class="dt">size_control_wt =</span> <span class="kw">mean</span>(size_control_wt),
@@ -300,7 +309,8 @@ scores &lt;-
     <span class="dt">Elogr =</span> <span class="kw">log2</span>(Fij /<span class="st"> </span>Eij), <span class="co"># Centers on 0</span>
     <span class="dt">Ediff =</span> (Fij -<span class="st"> </span>Eij)      <span class="co"># Centers on 0</span>
   ) %&gt;%
-<span class="st">  </span><span class="kw">group_by</span>(query_id, query_name) %&gt;%
+<span class="st">  </span><span class="co"># Calculate Z-score based on SD and mean of each screen at a given timepoint</span>
+<span class="st">  </span><span class="kw">group_by</span>(screen_id, timepoint) %&gt;%
 <span class="st">  </span><span class="kw">mutate</span>(
     <span class="dt">Zlogr =</span> (Elogr -<span class="st"> </span><span class="kw">mean</span>(Elogr, <span class="dt">na.rm =</span> T)) /<span class="st"> </span><span class="kw">sd</span>(Elogr,  <span class="dt">na.rm =</span> T),
     <span class="dt">Zdiff =</span> (Ediff -<span class="st"> </span><span class="kw">mean</span>(Ediff, <span class="dt">na.rm =</span> T)) /<span class="st"> </span><span class="kw">sd</span>(Ediff,  <span class="dt">na.rm =</span> T)
@@ -312,13 +322,14 @@ scores &lt;-
 <h1>Final Review</h1>
 <div id="screens" class="section level2">
 <h2>Screens</h2>
-<p><div id="htmlwidget-2923" style="width:100%;height:auto;" class="datatables"></div>
-<script type="application/json" data-for="htmlwidget-2923">{"x":{"data":[["1","2","3","4"],["2012-07-27-alpha-pWJ1781","2012-07-27-alpha-AIM25","2012-07-27-alpha-AKR2","2012-07-27-alpha-BUR6"],["pWJ1781","pWJ2083","pWJ2081","pWJ2082"],["GAL1p-Vector","GAL1p-AIM25","GAL1p-AKR2","GAL1p-BUR6"],["MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb"],["SPA","SPA","SPA","SPA"],["SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA"],[30,30,30,30],["SDL screen of empty GAL1p vector. A donor strain (W8164-2C) was used to pair an empty vector (pWJ1781) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AIM25. A donor strain (W8164-2C) was used to pair GAL1p-AIM25 (pWJ2083) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AKR2. A donor strain (W8164-2C) was used to pair GAL1p-AKR2 (pWJ2081) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of BUR6. A donor strain (W8164-2C) was used to pair GAL1p-BUR6 (pWJ2082) to the MATalpha KanMX gene disruption collection."]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> </th>\n      <th>screen_id</th>\n      <th>query_id</th>\n      <th>query_name</th>\n      <th>strain_collection_id</th>\n      <th>method_id</th>\n      <th>media_id</th>\n      <th>temperature</th>\n      <th>screen_description</th>\n    </tr>\n  </thead>\n</table>","options":{"columnDefs":[{"className":"dt-right","targets":7},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false},"callback":null,"filter":"none"},"evals":[]}</script></p>
+<p><div id="htmlwidget-7726" style="width:100%;height:auto;" class="datatables"></div>
+<script type="application/json" data-for="htmlwidget-7726">{"x":{"data":[["1","2","3","4"],["2012-07-27-alpha-pWJ1781","2012-07-27-alpha-AIM25","2012-07-27-alpha-AKR2","2012-07-27-alpha-BUR6"],["pWJ1781","pWJ2083","pWJ2081","pWJ2082"],["GAL1p-Vector","GAL1p-AIM25","GAL1p-AKR2","GAL1p-BUR6"],["MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb","MATalpha-deletion-384-hb"],["SPA","SPA","SPA","SPA"],["SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA","SC_Gal_-leu_+5FOA"],[30,30,30,30],["SDL screen of empty GAL1p vector. A donor strain (W8164-2C) was used to pair an empty vector (pWJ1781) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AIM25. A donor strain (W8164-2C) was used to pair GAL1p-AIM25 (pWJ2083) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of AKR2. A donor strain (W8164-2C) was used to pair GAL1p-AKR2 (pWJ2081) to the MATalpha KanMX gene disruption collection.","SDL screen of galactose induced overexpression of BUR6. A donor strain (W8164-2C) was used to pair GAL1p-BUR6 (pWJ2082) to the MATalpha KanMX gene disruption collection."]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> </th>\n      <th>screen_id</th>\n      <th>query_id</th>\n      <th>query_name</th>\n      <th>strain_collection_id</th>\n      <th>method_id</th>\n      <th>media_id</th>\n      <th>temperature</th>\n      <th>screen_description</th>\n    </tr>\n  </thead>\n</table>","options":{"columnDefs":[{"className":"dt-right","targets":7},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false},"callback":null,"filter":"none"},"evals":[]}</script></p>
 </div>
 <div id="tests" class="section level2">
 <h2>Tests</h2>
 <pre><code>## Annotated measurements are not missing any data.
-## Measurements have uniquely mapped to annotations.</code></pre>
+## Measurements have uniquely mapped to annotations.
+## Plate groupings match specified plate density.</code></pre>
 </div>
 </div>
 <div id="write-to-file" class="section level1">
@@ -379,7 +390,7 @@ devtools::<span class="kw">session_info</span>()</code></pre></div>
 ##  rstudioapi    0.3.1   2015-04-07 CRAN (R 3.2.0)                               
 ##  rversions     1.0.2   2015-07-13 CRAN (R 3.2.0)                               
 ##  scales        0.3.0   2015-08-25 CRAN (R 3.2.0)                               
-##  screenmill  * 0.0.2   2015-11-19 Github (ericedwardbryant/screenmill@2619963) 
+##  screenmill  * 0.0.2   2015-11-19 Github (ericedwardbryant/screenmill@c8833f1) 
 ##  stringi       1.0-1   2015-10-22 CRAN (R 3.2.0)                               
 ##  stringr       1.0.0   2015-04-30 CRAN (R 3.2.0)                               
 ##  tidyr         0.3.1   2015-09-10 CRAN (R 3.2.0)                               

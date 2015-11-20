@@ -5,6 +5,7 @@ knitr::opts_chunk$set(message = F)
 # Settings
 prefix     <- 'db/SPA-YYYY-MM-DD' # prepended to file name
 replicates <- 4                   # number of replicates of each strain
+density    <- 1536                # plate density
 cm         <- system.file('examples/cm.txt', package = 'screenmill')
 dr         <- system.file('examples/dr.txt', package = 'screenmill')
 dr_control <- system.file('examples/control.txt', package = 'screenmill')
@@ -89,8 +90,8 @@ exclusions_marked <-
 edge_adjusted <-
   # After marking exclusions
   exclusions_marked %>%
-  # For each plate
-  group_by(query_id, query_name, plate) %>%
+  # For each plate at a given timepoint
+  group_by(screen_id, timepoint, plate) %>%
   # Adjust the colony size such that
   mutate(
     # Outer edges
@@ -115,12 +116,12 @@ edge_adjusted <-
 plate_adjusted <-
   # After adjusting edges
   edge_adjusted %>%
-  # For each plate
-  group_by(query_id, query_name, plate) %>%
+  # For each plate at a given timepoint
+  group_by(screen_id, timepoint, plate) %>%
   # Calculate median of plate controls
   mutate(plate_median = median(size[plate_control], na.rm = T)) %>%
-  # For each screen
-  group_by(query_id, query_name) %>%
+  # For each screen at a given timepoint
+  group_by(screen_id, timepoint) %>%
   # Adjust the colony size such that the plate median is scaled to screen median
   mutate(
     screen_median = median(size[plate_control], na.rm = T),
@@ -132,12 +133,12 @@ plate_adjusted <-
 position_adjusted <-
   # After plate adjustment
   plate_adjusted %>%
-  # For each screen
-  group_by(query_id, query_name) %>%
+  # For each screen at a given timepoint
+  group_by(screen_id, timepoint) %>%
   # Re-calculate screen median
   mutate(screen_median = median(size[plate_control], na.rm = T)) %>%
-  # For each plate
-  group_by(query_id, query_name, plate) %>%
+  # For each plate at a given timepoint
+  group_by(screen_id, timepoint, plate) %>%
   # Adjust colony size to remove spatial effect
   mutate(
     spatial_effect = screenmill::spatial_effect(colony_row, colony_col, size),
@@ -149,8 +150,8 @@ position_adjusted <-
 normalized <-
   # After all adjustments
   position_adjusted %>%
-  # For each screen
-  group_by(query_id, query_name) %>%
+  # For each screen at a given timepoint
+  group_by(screen_id, timepoint) %>%
   # Place lower limit on size
   mutate(
     size = ifelse(size < 0.01, 0.01, size),
@@ -165,9 +166,11 @@ control <-
   normalized %>%
   filter(screen_id == control_screen_id) %>%
   select(
-    control_screen_id, strain_id, strain_name, 
+    control_screen_id, timepoint, strain_id, strain_name, 
     plate, row, column, replicate, colony_row, colony_col, 
-    size_control = size, size_control_wt = screen_median, sd_control_wt = screen_sd
+    size_control    = size, 
+    size_control_wt = screen_median, 
+    sd_control_wt   = screen_sd
   )
 
 # Select query data
@@ -175,14 +178,20 @@ queries <-
   normalized %>%
   filter(screen_id != control_screen_id) %>%
   select(
-    screen_id, control_screen_id, strain_id:replicate, colony_row, colony_col,
-    size_query = size, size_query_wt = screen_median, sd_query_wt = screen_sd
+    screen_id, timepoint, control_screen_id, strain_id:replicate, 
+    colony_row, colony_col, 
+    size_query    = size, 
+    size_query_wt = screen_median, 
+    sd_query_wt   = screen_sd
   )
 
 scores <-
   left_join(queries, control) %>%
   # Group by strain to agregate replicates
-  group_by(screen_id, strain_id, strain_name, query_id, query_name, plate, row, column) %>%
+  group_by(
+    screen_id, timepoint, strain_id, strain_name, query_id, query_name, 
+    plate, row, column
+  ) %>%
   summarise(
     size_query_wt   = mean(size_query_wt),
     size_control_wt = mean(size_control_wt),
@@ -200,7 +209,8 @@ scores <-
     Elogr = log2(Fij / Eij), # Centers on 0
     Ediff = (Fij - Eij)      # Centers on 0
   ) %>%
-  group_by(query_id, query_name) %>%
+  # Calculate Z-score based on SD and mean of each screen at a given timepoint
+  group_by(screen_id, timepoint) %>%
   mutate(
     Zlogr = (Elogr - mean(Elogr, na.rm = T)) / sd(Elogr,  na.rm = T),
     Zdiff = (Ediff - mean(Ediff, na.rm = T)) / sd(Ediff,  na.rm = T)
@@ -233,6 +243,15 @@ if (nrow(measurements) - nrow(raw_colony_sizes)) {
     'Check for proper measurement annotation.'))
 } else {
   message('Measurements have uniquely mapped to annotations.')
+}
+
+# Are plates uniquely grouped by screen_id, timepoint, and plate variables
+observed_density <- count(normalized, screen_id, timepoint, plate)
+if (any(observed_density$n != density)) {
+  warning('The number of colonies on each plate does not match specified density.')
+  observed_density
+} else {
+  message('Plate groupings match specified plate density.')
 }
 
 ## ----eval = FALSE--------------------------------------------------------
