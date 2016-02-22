@@ -4,11 +4,12 @@
 \alias{rough_crop}
 \title{Rough crop a grid of plates}
 \usage{
-rough_crop(path, thresh = 0.5, dim = c(3, 3), pad = c(-20, -20, -20, -20),
+rough_crop(img, thresh = 0.5, dim = c(3, 3), pad = c(0, 0, 0, 0),
   display = FALSE)
 }
 \arguments{
-\item{path}{Path to an image of a plate grid.}
+\item{img}{Either a path to a plate grid image file, or its "Image" object.
+(see \link[EBImage]{readImage})}
 
 \item{thresh}{Pixel intensity threshold used to find plate edges. Defaults
 to \code{0.5}. Note: region between plates is assumed to be dark.}
@@ -17,8 +18,9 @@ to \code{0.5}. Note: region between plates is assumed to be dark.}
 three columns of plates respectively.}
 
 \item{pad}{Number of pixels to add (or remove) from detected plate edges.
-Defaults to \code{c(-20, -20, -20, -20)} which removes 20 pixels from the
-left, right, top, and bottom of each plate respectively.}
+Defaults to \code{c(0, 0, 0, 0)} which adds 0 pixels to the
+left, right, top, and bottom coordinates of each plate respectively. Negative
+values will remove pixels.}
 
 \item{display}{Should the resulting cropped images be displayed in a web
 browser? Defaults to \code{FALSE}.}
@@ -26,14 +28,14 @@ browser? Defaults to \code{FALSE}.}
 \value{
 \code{rough_crop} returns a dataframe with the following columns:
 
-\item{plate}{Integer position of plate in grid (row-wise).}
+\item{position}{Integer position of plate in grid (row-wise).}
 \item{rough_top}{The rough top edge of the plate.}
 \item{rough_left}{The rough left edge of the plate.}
 \item{rough_right}{The rough right edge of the plate.}
 \item{rough_bot}{The rough bottom edge of the plate.}
 }
 \description{
-Finds and returns the rough plate edges for a grid of plates.
+Finds the rough plate edges for a grid of plates.
 }
 \details{
 Rough crops for a grid of plates are detected by thresholding by the
@@ -41,7 +43,7 @@ brightness of the image (can be adjusted using the \code{thresh} argument).
 Rows and columns are then scanned to identify locations with a large number
 of pixels that are more than the threshold pixel intensity. These transitions
 are used to define the plate edges. For best results, the grid should be
-approximately square to the edge of the image. Plates are numbered from
-left to right, top to bottom.
+approximately square to the edge of the image. Plate positions are numbered
+from left to right, top to bottom.
 }
 

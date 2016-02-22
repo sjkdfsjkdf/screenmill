@@ -1,16 +1,18 @@
 # ---- Rough Crop - CM Engine 2.0 ----
 #' Rough crop a grid of plates
 #'
-#' Finds and returns the rough plate edges for a grid of plates.
+#' Finds the rough plate edges for a grid of plates.
 #'
-#' @param path Path to an image of a plate grid.
+#' @param img Either a path to a plate grid image file, or its "Image" object.
+#' (see \link[EBImage]{readImage})
 #' @param thresh Pixel intensity threshold used to find plate edges. Defaults
 #' to \code{0.5}. Note: region between plates is assumed to be dark.
 #' @param dim Grid dimensions. Defaults to \code{c(3, 3)} for three rows and
 #' three columns of plates respectively.
 #' @param pad Number of pixels to add (or remove) from detected plate edges.
-#' Defaults to \code{c(-20, -20, -20, -20)} which removes 20 pixels from the
-#' left, right, top, and bottom of each plate respectively.
+#' Defaults to \code{c(0, 0, 0, 0)} which adds 0 pixels to the
+#' left, right, top, and bottom coordinates of each plate respectively. Negative
+#' values will remove pixels.
 #' @param display Should the resulting cropped images be displayed in a web
 #' browser? Defaults to \code{FALSE}.
 #'
@@ -19,12 +21,12 @@
 #' Rows and columns are then scanned to identify locations with a large number
 #' of pixels that are more than the threshold pixel intensity. These transitions
 #' are used to define the plate edges. For best results, the grid should be
-#' approximately square to the edge of the image. Plates are numbered from
-#' left to right, top to bottom.
+#' approximately square to the edge of the image. Plate positions are numbered
+#' from left to right, top to bottom.
 #'
 #' @return \code{rough_crop} returns a dataframe with the following columns:
 #'
-#' \item{plate}{Integer position of plate in grid (row-wise).}
+#' \item{position}{Integer position of plate in grid (row-wise).}
 #' \item{rough_top}{The rough top edge of the plate.}
 #' \item{rough_left}{The rough left edge of the plate.}
 #' \item{rough_right}{The rough right edge of the plate.}
@@ -32,26 +34,28 @@
 #'
 #' @importFrom EBImage readImage display
 #' @importFrom dplyr lag rename_ left_join data_frame %>% arrange mutate select_
+#' @importFrom assertthat is.string
 #' @export
 
-rough_crop <- function(path,
+rough_crop <- function(img,
                        thresh = 0.5,
                        dim = c(3, 3),
-                       pad = c(-20, -20, -20, -20),
+                       pad = c(0, 0, 0, 0),
                        display = FALSE) {
 
   # Read and threshold image
-  img <- readImage(path)
+  if (is.string(img)) img <- readImage(img)
+  if (colorMode(img)) img <- channel(img, 'luminance')
   thr <- img > thresh
 
   # Find left (l), right (r), top (t) and bottom (b) plate edges
-  lr <- apply(thr, 1, function(x) length(which(x)) > 200)
-  tb <- apply(thr, 2, function(x) length(which(x)) > 200)
+  lr <- apply(thr, 1, function(x) length(which(x)) > dim(img)[1] / 100)
+  tb <- apply(thr, 2, function(x) length(which(x)) > dim(img)[2] / 100)
   lr_lag <- lr - lag(lr)
   tb_lag <- tb - lag(tb)
   l <- which(lr_lag > 0)
-  t <- which(tb_lag > 0)
   r <- which(lr_lag < 0)
+  t <- which(tb_lag > 0)
   b <- which(tb_lag < 0)
 
   # Make sure all plate edges were found, if not use dimensions of image
@@ -67,7 +71,7 @@ rough_crop <- function(path,
     left_join(data_frame(t, b), by = 't') %>% # Pair bottom edges
     arrange(t, l) %>%  # Arrange plates to be numbered left-right top-bottom
     mutate(
-      plate = 1:n(),
+     position = 1:n(),
       # Add padding if desired
       l = l - pad[1],
       r = r + pad[2],
@@ -89,5 +93,6 @@ rough_crop <- function(path,
   }
 
   # Rename columns of result to be more user friendly
-  select_(result, ~plate, rough_top = ~t, rough_left = ~l, rough_right = ~r, rough_bot = ~b)
+  select_(result, ~position, rough_top = ~t, rough_left = ~l, rough_right = ~r,
+          rough_bot = ~b)
 }

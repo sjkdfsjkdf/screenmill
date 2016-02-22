@@ -1,12 +1,12 @@
 
-#' @importFrom
 
-path <- '2016-02-16 11:17:29.tif'
-spar <- 0.4
-thresh <- 0.5
-library(EBImage) # readImage colorMode Grayscale
-library(magrittr)
-library(dplyr) # %>% last
+
+# path <- '2016-02-16 11:17:29.tif'
+# spar <- 0.4
+# thresh <- 0.5
+# library(EBImage) # readImage colorMode Grayscale
+# library(magrittr)
+# library(dplyr) # %>% last
 
 
 
