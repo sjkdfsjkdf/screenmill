@@ -1,7 +1,7 @@
 Package: screenmill
 Type: Package
 Title: Tools for working with ScreenMill data
-Version: 0.0.3
+Version: 0.0.4
 Date: 2015-05-28
 Authors@R: 'Eric Bryant <eeb2139@columbia.edu> [aut,cre]'
 Maintainer: 'Eric Bryant' <eeb2139@columbia.edu>
@@ -12,12 +12,17 @@ License: GPL-3
 LazyData: TRUE
 VignetteBuilder: knitr
 Imports:
+    EBImage,
+    dplyr,
+    assertthat,
     R.utils,
     tidyr,
-    dplyr,
-    ggplot2,
     data.table,
-    stats,
     MASS,
-    assertthat
+    spatstat,
+    shiny (>= 0.13),
+    miniUI (>= 0.1.1),
+    rstudioapi (>= 0.5)
+Suggests:
+    ggplot2
 RoxygenNote: 5.0.1

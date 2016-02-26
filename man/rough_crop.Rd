@@ -4,35 +4,35 @@
 \alias{rough_crop}
 \title{Rough crop a grid of plates}
 \usage{
-rough_crop(img, thresh = 0.5, dim = c(3, 3), pad = c(0, 0, 0, 0),
-  display = FALSE)
+rough_crop(img, thresh, invert, pad)
 }
 \arguments{
-\item{img}{Either a path to a plate grid image file, or its "Image" object.
-(see \link[EBImage]{readImage})}
+\item{img}{Either an "Image" object (see \link[EBImage]{readImage}), or a
+matrix.}
 
-\item{thresh}{Pixel intensity threshold used to find plate edges. Defaults
-to \code{0.5}. Note: region between plates is assumed to be dark.}
+\item{thresh}{Fraction of foreground pixels needed to identify plate
+boundaries. Defaults to \code{0.03}.}
 
-\item{dim}{Grid dimensions. Defaults to \code{c(3, 3)} for three rows and
-three columns of plates respectively.}
+\item{invert}{Should the image be inverted? Defaults to \code{TRUE}.
+Recommended \code{FALSE} if region between plates is lighter than the
+plates. This is faster than manual inversion of entire image.}
 
 \item{pad}{Number of pixels to add (or remove) from detected plate edges.
 Defaults to \code{c(0, 0, 0, 0)} which adds 0 pixels to the
 left, right, top, and bottom coordinates of each plate respectively. Negative
 values will remove pixels.}
 
-\item{display}{Should the resulting cropped images be displayed in a web
-browser? Defaults to \code{FALSE}.}
+\item{display}{Should the resulting cropped images be displayed?
+Defaults to \code{FALSE}.}
 }
 \value{
 \code{rough_crop} returns a dataframe with the following columns:
 
 \item{position}{Integer position of plate in grid (row-wise).}
-\item{rough_top}{The rough top edge of the plate.}
-\item{rough_left}{The rough left edge of the plate.}
-\item{rough_right}{The rough right edge of the plate.}
-\item{rough_bot}{The rough bottom edge of the plate.}
+\item{top}{The rough top edge of the plate.}
+\item{left}{The rough left edge of the plate.}
+\item{right}{The rough right edge of the plate.}
+\item{bot}{The rough bottom edge of the plate.}
 }
 \description{
 Finds the rough plate edges for a grid of plates.

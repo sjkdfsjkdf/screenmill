@@ -4,7 +4,7 @@
 \alias{grid_breaks}
 \title{Determine column or row breaks for grid}
 \usage{
-grid_breaks(img, type = c("col", "row"), thresh = 0.01, edges = c("inner",
+grid_breaks(img, type = c("col", "row"), thresh = 0.03, edges = c("inner",
   "outer", "mid"))
 }
 \arguments{
