@@ -1,4 +1,33 @@
-#------------------------------------------------------------------------------
+# ---- New Screen ----
+# #' @export
+#
+# new_screen <- function(dir = '.', start = 'auto', template = c('auto', 'none')) {
+#
+#   files <- list.files(dir, pattern = '\\.tiff?$|\\.jpe?g$|\\.png$', full.names = T)
+#   mtime <- file.info(files)$mtime
+#   if (start == 'auto') start <- format(min(mtime), usetz = T)
+#   if (template == 'auto') template <- files[which.max(mtime)]
+#   if (template == 'none') template <- files
+#
+#   for (scan in unique(template)) {
+#     n_positions <- readline(paste0('How many plate positions are in ', scan, '? '))
+#     message('What is the query ID for position:')
+#     for (n in n_positions) {
+#       p_query <- readline(paste0(n, '. '))
+#     }
+#   }
+#   type <- readline('What type of screen is this (e.g. SPA, SGA, Drug, etc.)? ')
+#   temp <- readline('What was the incubation temperature (e.g. 30)? ')
+#   data_frame(
+#     file             = files,
+#     crop_template    = template,
+#     incubation_start = start,
+#     incubation_end   = mtime
+#   )
+# }
+
+
+# ---- New Strain Collection ----
 #' Create new strain collection
 #'
 #' A convenience function to create a new strain collection keyfile
@@ -8,7 +37,6 @@
 #' @param format Size of plates. Defaults to 96.
 #' @param dim Aspect ratio of rows to columns. Defaults to \code{c(2, 3)}.
 #'
-#' @importFrom dplyr data_frame %>%
 #' @export
 
 new_strain_collection <- function(id, nplates, format = 96, dim = c(2, 3)) {
@@ -28,7 +56,7 @@ new_strain_collection <- function(id, nplates, format = 96, dim = c(2, 3)) {
 }
 
 
-#------------------------------------------------------------------------------
+# ---- New Batch Metadata ----
 #' Write metadata templates
 #'
 #' A convenience function to create a templated 'screens.csv'

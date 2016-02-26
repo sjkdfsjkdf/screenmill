@@ -24,8 +24,6 @@
 #'                        \code{\link[stats]{smooth.spline}}.
 #' }
 #'
-#' @importFrom dplyr data_frame arrange %>%
-#' @importFrom stats smooth.spline predict integrate
 #' @export
 
 growth_parameters <- function(time, size, ...) {

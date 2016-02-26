@@ -16,13 +16,13 @@
 #'
 #' @return A ggplot object
 #'
-#' @importFrom dplyr %>% mutate data_frame
-#' @importFrom ggplot2 ggplot geom_tile aes %+% facet_grid scale_fill_gradient2 theme element_blank coord_fixed
 #' @export
 
 
 plot_plates <- function(data, fill, row, col, plate = 'plate',
                         query = 'query_name', upper = 1, mid = 0, lower = -1) {
+  loadNamespace('ggplot2')
+
   # These fields are required in `data`
   data_frame(
     row   = data[[row]],

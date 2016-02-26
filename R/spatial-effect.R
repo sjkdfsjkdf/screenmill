@@ -16,9 +16,6 @@
 #' @return Returns a vector with the same length as \code{value}.
 #'
 #' @importFrom MASS rlm
-#' @importFrom stats loess poly predict
-#' @importFrom assertthat assert_that is.number
-#' @importFrom dplyr data_frame filter
 #' @export
 
 spatial_effect <- function(x, y, value, method = c('rlm', 'loess'), deg = 2, ...) {

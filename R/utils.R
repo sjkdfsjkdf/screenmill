@@ -3,6 +3,7 @@
 # Assign column names in pipline
 # @param x Data frame or matrix
 # @param names Character; Column names to assign to x
+
 assign_names <- function(x, names) { colnames(x) <- names; return(x) }
 
 # Utils: read_cm --------------------------------------------------------------
@@ -10,7 +11,7 @@ assign_names <- function(x, names) { colnames(x) <- names; return(x) }
 # Parse names in colony measurement log file
 # @param lines Character; Vector plate plate lines from CM engine log.
 # @param by Delimiter used tp splite plate names, numbers, and conditions.
-#' @importFrom dplyr %>% mutate_
+
 parse_names <- function(lines, by = ',') {
   do.call(rbind, strsplit(lines, by)) %>%
     assign_names(c('scan_name', 'plate', 'scan_cond')) %>%
@@ -26,7 +27,7 @@ parse_names <- function(lines, by = ',') {
 # Parse measurements in colony measurement log file
 # @param lines Character; Vector of measurement lines from CM engine log.
 # @param by Delimiter used to split measurements. Defaults to \code{\\\\t}.
-#' @importFrom dplyr %>% mutate_
+
 parse_measurements <- function(lines, by) {
   tbl <- do.call(rbind, strsplit(lines, by))
 
@@ -50,7 +51,7 @@ parse_measurements <- function(lines, by) {
 # @param libcols Integer; number of columns in strain library.
 # @param replicates Integer; number of strain replicates in screen.
 # @param nobs Integer; number of observations in screen.
-#' @importFrom dplyr %>%
+
 map_replicate <- function(librows, libcols, replicates, nobs) {
   # map plate positions to replicate numbers
   (matrix(1, nrow = librows, ncol = libcols) %x%
@@ -65,7 +66,7 @@ map_replicate <- function(librows, libcols, replicates, nobs) {
 # @param nrows Integer; number of rows on plate.
 # @param ncols Integer; number of columns on plate.
 # @param nobs Integer; number of observations in screen.
-#' @importFrom dplyr %>%
+
 map_column <- function(libcols, replicates, nrows, ncols, nobs) {
   # map plate positions to strain library columns
   matrix(
@@ -79,6 +80,7 @@ map_column <- function(libcols, replicates, nrows, ncols, nobs) {
 # @param librows Integer; number of rows in strain library.
 # @param replicates Integer; number of strain replicates in screen.
 # @param nobs Integer; number of observations in screen.
+
 map_row <- function(librows, replicates, nobs) {
   # map plate positions to strain library rows
   rep(LETTERS[1:librows], each = sqrt(replicates), length.out = nobs)
@@ -91,6 +93,7 @@ map_row <- function(librows, replicates, nobs) {
 # @param match Regular expression used to match header line.
 # @param delim Delimiter used to split header
 #' @importFrom R.utils countLines
+
 find_header <- function(path, match, delim) {
   # Open file
   con <- file(path, open = "r")
@@ -110,7 +113,7 @@ find_header <- function(path, match, delim) {
 
 # Write screens csv template
 # @param cm Path to colony measurement log file.
-#' @importFrom dplyr %>% select_ distinct mutate_ arrange_
+
 write_screens_csv <- function(cm) {
   dirpath <- dirname(cm)
   readLines(cm) %>%
@@ -143,7 +146,7 @@ write_screens_csv <- function(cm) {
 
 # Write plates csv template
 # @param cm Path to colony measurement log file.
-#' @importFrom dplyr %>% select_ distinct mutate_
+
 write_plates_csv <- function(cm) {
   dirpath <- dirname(cm)
   readLines(cm) %>%

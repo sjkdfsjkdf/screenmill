@@ -20,7 +20,6 @@
 #'   \item{\bold{circ:}} The circularity of the colony.
 #' }
 #'
-#' @importFrom dplyr %>% mutate_ select_
 #' @export
 
 read_cm <- function(path, replicates, dim = c(2, 3)) {
@@ -82,7 +81,6 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
 #'   excluded in review.
 #' }
 #'
-#' @importFrom dplyr %>% select_ mutate_ arrange_
 #' @importFrom tidyr gather
 #' @export
 
@@ -153,7 +151,6 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
 #' @param screens Path to screens metadata CSV
 #' @param plates Path to plates metadata CSV
 #'
-#' @importFrom dplyr %>% left_join mutate_
 #' @importFrom data.table fread
 #' @export
 
