@@ -32,9 +32,6 @@ ggbrush <- function(data, xvar, yvar) {
 
 #' @export
 
-library(shiny)
-library(miniUI)
-
 new_screen <- function(dir = '.') {
 
   files <- list.files(dir, pattern = '\\.tiff?$|\\.jpe?g$|\\.png$', full.names = T)
@@ -68,7 +65,7 @@ new_screen <- function(dir = '.') {
           4,
           h4('Screen Type'),
           radioButtons('type', NULL, list('SPA', 'SGA', 'Drug', 'Other'), inline = T),
-          p('SPA: Selective Ploidy Ablation\nSGA: Synthetic Genetic Array'),
+          p('SPA: Selective Ploidy Ablation\nSGA: Synthetic Genetic Array')
         )
       ),
       hr(),
