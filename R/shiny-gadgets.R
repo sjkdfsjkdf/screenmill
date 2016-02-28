@@ -30,6 +30,11 @@ ggbrush <- function(data, xvar, yvar) {
   runGadget(ui, server)
 }
 
+library(shiny)
+library(miniUI)
+library(rhandsontable)
+library(dplyr)
+
 #' @export
 
 new_screen <- function(dir = '.') {
@@ -94,6 +99,7 @@ new_screen <- function(dir = '.') {
       h2('Positions'),
       numericInput('positions', 'Number of plate positions per scan', 9, min = 1, step = 1),
       hr(),
+      rHandsontableOutput('hot'),
       tableOutput('table')
     )
   )
@@ -124,12 +130,15 @@ new_screen <- function(dir = '.') {
       output$table <- renderTable(table)
     })
 
-
+    output$hot
 
     observeEvent(input$done, {
       stopApp(table)
     })
   }
 
-  runGadget(ui, server)
+  runGadget(ui, server, viewer = dialogViewer('New Screen', width = 1500, height = 1500))
 }
+
+
+
