@@ -1,8 +1,8 @@
 # ---- Editable data frame ----
-library(shiny)
-library(miniUI)
-library(rhandsontable)
-library(dplyr)
+# library(shiny)
+# library(miniUI)
+# library(rhandsontable)
+# library(dplyr)
 
 
 table_gadget <- function() {
@@ -34,4 +34,4 @@ table_gadget <- function() {
   runGadget(ui, server, viewer = dialogViewer("Edit", width = 1000, height = 800))
 }
 
-table_gadget()
+#table_gadget()

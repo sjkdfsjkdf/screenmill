@@ -30,10 +30,10 @@ ggbrush <- function(data, xvar, yvar) {
   runGadget(ui, server)
 }
 
-library(shiny)
-library(miniUI)
-library(rhandsontable)
-library(dplyr)
+# library(shiny)
+# library(miniUI)
+# library(rhandsontable)
+# library(dplyr)
 
 #' @export
 
