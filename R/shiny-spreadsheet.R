@@ -8,7 +8,7 @@
 table_gadget <- function() {
 
   # ---- Input DF ----
-  df <- data_frame(a = 1:10, b = LETTERS[1:10], weekdays(1:10))
+  df <- data_frame(a = 1:10, b = LETTERS[1:10])
 
   # ---- Shiny Gadget UI ----
   ui <-
@@ -34,4 +34,4 @@ table_gadget <- function() {
   runGadget(ui, server, viewer = dialogViewer("Edit", width = 1000, height = 800))
 }
 
-#table_gadget()
+table_gadget()
