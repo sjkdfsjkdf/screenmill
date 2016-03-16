@@ -44,7 +44,7 @@ screenmill <- function(dir = 'test-scans') {
           )))
         )),
         # Table 1: Group Images
-        rHandsontableOutput('group_table'),
+        rHandsontableOutput('tbl1'),
         h2('Annotate Groups'),
         h3(tags$small(
           'Please review the following fields for each group:',
@@ -59,7 +59,7 @@ screenmill <- function(dir = 'test-scans') {
           )))
         )),
         # Table 2: Annotate Groups
-        rHandsontableOutput('group_annotate'),
+        rHandsontableOutput('tbl2'),
         h2('Annotate Plates'),
         h3(tags$small(
           'Please review the following fields for each plate position in each group:',
@@ -73,7 +73,7 @@ screenmill <- function(dir = 'test-scans') {
           )))
         )),
         # Table 3: Annotate Plates
-        rHandsontableOutput('plate_annotate'),
+        rHandsontableOutput('tbl3'),
         h2('Annotate Queries'),
         h3(tags$small(
           'Please review the following fields for each query:',
@@ -85,123 +85,140 @@ screenmill <- function(dir = 'test-scans') {
           )))
         )),
         # Table 4: Annotate Queries
-        rHandsontableOutput('query_annotate')
+        rHandsontableOutput('tbl4')
       )
     )
 
   # ---- Server ----
   server <- function(input, output, session) {
 
-    s <- new.env()
+    # Track the status of table inputs to determine whether to reset tables
+    reset <- reactiveValues(tbl1 = T, tbl2 = T, tbl3 = T, tbl4 = T)
+    observeEvent(input$time_series, {
+      reset$tbl1 <- T; reset$tbl2 <- T; reset$tbl3 <- T; reset$tbl4 <- T
+    })
+    observeEvent(input$tbl1, {
+      reset$tbl1 <- F; reset$tbl2 <- T; reset$tbl3 <- T; reset$tbl4 <- T
+    })
+    observeEvent(input$tbl2, {
+      reset$tbl2 <- F; reset$tbl3 <- T; reset$tbl4 <- T
+    })
+    observeEvent(input$tbl3, {
+      reset$tbl3 <- F; reset$tbl4 <- T
+    })
+    observeEvent(input$tbl4, {
+      reset$tbl4 <- F
+    })
 
-    # Table used to assign images to groups if time-series --------------------
-    output$group_table <- renderRHandsontable({
-      if (input$time_series == 'Yes')  df <- select(images, -path, -standard, group = time_series)
-      if (input$time_series == 'No')   df <- select(images, -path, -time_series, group = standard)
-      if (!is.null(input$group_table)) df <- hot_to_r(input$group_table)
 
-      # Define crop template as most recent scan in group
-      s$DF <-
-        df %>%
-        group_by(group) %>%
-        mutate(
-          Ptime = as.POSIXct(time),
-          crop_template = name[which.max(Ptime)],
-          start = min(Ptime) %>% as.character
-        ) %>%
-        select(-Ptime) %>%
-        ungroup
+    # Table 1: Image groups -
+    tbl1 <- reactive({
+      if (reset$tbl1) {
+        images %>%
+          mutate(group = switch(input$time_series, Yes = time_series, No = standard)) %>%
+          select(-path, -time_series, -standard)
+      } else {
+        hot_to_r(input$tbl1)
+      }
+    })
 
-      # Create a handsontable
-      df %>%
+    output$tbl1 <- renderRHandsontable({
+      tbl1() %>%
         rhandsontable(height = min(c(23 * nrow(.) + 50, 300))) %>%
         hot_col(c('name', 'time'), readOnly = T) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
 
-    # Table used to annotate groups with # plates, and temp -------------------
-    output$group_annotate <- renderRHandsontable({
 
-      # Respond to changes in time-series and group table
-      input$time_series; input$group_table
+    # Table 2: Group annotation -
+    tbl2 <- reactive({
+      if (reset$tbl2) {
+        tbl1() %>%
+          group_by(group) %>%
+          mutate(
+            Ptime = as.POSIXct(time),
+            crop_template = name[which.max(Ptime)],
+            start = min(Ptime) %>% as.character
+          ) %>%
+          ungroup %>%
+          select(group, crop_template, start) %>%
+          distinct %>%
+          arrange(group) %>%
+          mutate(positions = 1L, temperature = 30L)
+      } else {
+        hot_to_r(input$tbl2)
+      }
+    })
 
-      # Initialize df
-      df <-
-        (s$DF) %>%
-        select(group, crop_template, start) %>%
-        distinct %>%
-        arrange(group) %>%
-        mutate(positions = 1L, temperature = 30L)
-
-      # Update df with user input
-      if (!is.null(input$group_annotate)) df <- hot_to_r(input$group_annotate)
-
-      # Export
-      s$DF2 <- left_join(select(s$DF, -start), df, by = c('group', 'crop_template'))
-
-      # Create a handsontable
-      df %>%
+    output$tbl2 <- renderRHandsontable({
+      tbl2() %>%
         rhandsontable(height = 23 * nrow(.) + 50) %>%
         hot_col(c('group', 'crop_template'), readOnly = T) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
 
-    # Table used to annotate plates -------------------------------------------
-    output$plate_annotate <- renderRHandsontable({
 
-      # Respond to changes in other inputs
-      input$time_series; input$group_table; input$group_annotate
-
-      # Initialize table
-      df <-
-        (s$DF2) %>%
-        select(group, crop_template, positions) %>%
-        group_by(group, crop_template) %>%
-        do(data_frame(position = 1:.$positions[1])) %>%
-        ungroup %>%
-        mutate(
-          query_id = '',
-          strain_collection_id = '',
-          plate = '',
-          media = ''
+    # Table 3: Plate annotation
+    tbl3 <- reactive({
+      if (reset$tbl3 && is.null(input$tbl3)) {
+        tbl2() %>%
+          select(group, crop_template, positions) %>%
+          group_by(group, crop_template) %>%
+          do(data_frame(position = 1:.$positions[1])) %>%
+          ungroup %>%
+          mutate(
+            query_id = '',
+            strain_collection_id = '',
+            plate = '',
+            media = ''
+          )
+      } else if (reset$tbl3) {
+        right_join(
+          hot_to_r(input$tbl3),
+          tbl2() %>%
+            select(group, crop_template, positions) %>%
+            group_by(group, crop_template) %>%
+            do(data_frame(position = 1:.$positions[1])) %>%
+            ungroup,
+          by = c('group', 'crop_template', 'position')
         )
+      } else {
+        hot_to_r(input$tbl3)
+      }
+    })
 
-      # Update df with user input
-      if (!is.null(input$plate_annotate)) df <- hot_to_r(input$plate_annotate)
-
-      s$DF3 <- left_join(s$DF2, df, by = c('group', 'crop_template'))
-
-      # Create a handsontable
-      df %>%
+    output$tbl3 <- renderRHandsontable({
+      tbl3() %>%
         rhandsontable(height = 23 * nrow(.) + 50) %>%
         hot_col(c('group', 'crop_template', 'position'), readOnly = T) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
 
-    # Table used to annotate queries ------------------------------------------
-    output$query_annotate <- renderRHandsontable({
 
-      # Respond to changes in other inputs
-      input$time_series; input$group_table; input$group_annotate; input$plate_annotate
-
-      # Initialize table
-      df <-
-        (s$DF3) %>%
-        select(query_id) %>%
-        distinct %>%
-        mutate(
-          query_name = '',
-          query_type = ''
+    # Table 4: Annotate queries
+    tbl4 <- reactive({
+      if (reset$tbl4 && is.null(input$tbl4)) {
+        tbl3() %>%
+          select(query_id) %>%
+          distinct %>%
+          mutate(
+            query_name = '',
+            query_type = ''
+          ) %>%
+          filter(query_id != '')
+      } else if (reset$tbl4) {
+        right_join(
+          hot_to_r(input$tbl4),
+          tbl3() %>% select(query_id) %>% distinct %>% filter(query_id != ''),
+          by = c('query_id')
         )
+      } else {
+        hot_to_r(input$tbl4)
+      }
+    })
 
-      # Update df with user input
-      if (!is.null(input$query_annotate)) df <- hot_to_r(input$query_annotate)
-
-      # Create a handsontable
-      s$DF4 <- left_join(s$DF3, df, by = c('query_id'))
-
-      # Create a handsontable
-      df %>%
+    output$tbl4 <- renderRHandsontable({
+      tbl4() %>%
         rhandsontable(height = 23 * nrow(.) + 50) %>%
         hot_col(c('query_id'), readOnly = T) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
@@ -209,7 +226,7 @@ screenmill <- function(dir = 'test-scans') {
 
 
     # On Click Done -----------------------------------------------------------
-    observeEvent(input$done, stopApp(s$DF4))
+    observeEvent(input$done, stopApp(tbl1()))
   }
 
   # ---- Run ----
