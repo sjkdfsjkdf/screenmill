@@ -41,7 +41,7 @@ annotate_plates <- function(dir = file.choose(),
 
   # ---- Setup ----
   images <-
-    image_data(dir) %>%
+    image_data() %>%
     mutate(
       standard = 1:n(),
       time_series = guess_groups(time),
@@ -314,7 +314,7 @@ annotate_plates <- function(dir = file.choose(),
 
 
 # ---- Utilities: screenmill ----
-image_data <- function(dir, ext =  '\\.tiff?$|\\.jpe?g$|\\.png$') {
+image_data <- function(dir = '.', ext =  '\\.tiff?$|\\.jpe?g$|\\.png$') {
 
   paths <- list.files(dir, pattern = ext, full.names = T)
 
