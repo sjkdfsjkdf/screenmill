@@ -35,7 +35,7 @@ annotate_plates <- function(dir = file.choose(),
                             treatments = NULL,
                             temperatures = c(23, 27, 30, 33, 37)) {
 
-  dir <- basename(dir)
+  dir <- dirname(dir)
   home <- setwd(dir)
   on.exit(setwd(home))
 
