@@ -4,12 +4,13 @@
 \alias{annotate_plates}
 \title{RStudio Addin for annotating plate images}
 \usage{
-annotate_plates(dir = ".", n_positions = 9L, queries = NULL,
+annotate_plates(dir = file.choose(), n_positions = 9L, queries = NULL,
   strain_collections = NULL, media = NULL, treatments = NULL,
   temperatures = c(23, 27, 30, 33, 37))
 }
 \arguments{
-\item{dir}{The directory containing images to annotate.}
+\item{dir}{The directory containing images to annotate. Default setting
+prompts the user to choose a file.}
 
 \item{n_positions}{The default number of plate positions per image
 (defaults to \code{9L}).}
@@ -35,8 +36,8 @@ the user from entering invalid data. If the \code{rothfreezer} package
 is installed, arguments set to \code{NULL} will be pulled from this package's
 database.
 
-The resulting annotation table is saved to the current working directory as
-\code{plate-annotations.csv}.
+The resulting annotation table is saved as \code{plate-annotations.csv}
+in the directory containing the annotated images.
 
 To quit without saving, just press "Cancel".
 }

@@ -3,7 +3,8 @@
 #' This function starts a Shiny gadget that allows a user to record information
 #' about plate images for arrayed colony growth experiments.
 #'
-#' @param dir The directory containing images to annotate.
+#' @param dir The directory containing images to annotate. Default setting
+#' prompts the user to choose a file.
 #' @param n_positions The default number of plate positions per image
 #' (defaults to \code{9L}).
 #' @param queries An optional vector of available query IDs.
@@ -18,21 +19,25 @@
 #' is installed, arguments set to \code{NULL} will be pulled from this package's
 #' database.
 #'
-#' The resulting annotation table is saved to the current working directory as
-#' \code{plate-annotations.csv}.
+#' The resulting annotation table is saved as \code{plate-annotations.csv}
+#' in the directory containing the annotated images.
 #'
 #' To quit without saving, just press "Cancel".
 #'
 #' @importFrom readr write_csv
 #' @export
 
-annotate_plates <- function(dir = '.',
+annotate_plates <- function(dir = file.choose(),
                             n_positions = 9L,
                             queries = NULL,
                             strain_collections = NULL,
                             media = NULL,
                             treatments = NULL,
                             temperatures = c(23, 27, 30, 33, 37)) {
+
+  dir <- basename(dir)
+  home <- setwd(dir)
+  on.exit(setwd(home))
 
   # ---- Setup ----
   images <-
