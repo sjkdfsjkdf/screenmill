@@ -5,7 +5,10 @@ Tools for working with [ScreenMill](http://www.rothsteinlab.com/tools/screen_mil
 ## Installation
 
 ```r
-# BioConductor (>= 1.18.0) supports GitHub package installs
-if (packageVersion('BiocInstaller') < '1.18.0') source('https://bioconductor.org/biocLite.R')
+# BioC. (>= 1.18.0) supports GitHub package installs with BioC. dependencies
+if (!require('BiocInstaller') || packageVersion('BiocInstaller') < '1.18.0') {
+  source('https://bioconductor.org/biocLite.R')
+}
+
 biocLite('EricEdwardBryant/screenmill')
 ```
