@@ -5,6 +5,7 @@ Tools for working with [ScreenMill](http://www.rothsteinlab.com/tools/screen_mil
 ## Installation
 
 ```r
-if (!require(devtools)) install.packages('devtools')
-devtools::install_github('EricEdwardBryant/screenmill')
+# BioConductor (>= 1.18.0) supports GitHub package installs
+if (packageVersion('BiocInstaller') < '1.18.0') source('https://bioconductor.org/biocLite.R')
+biocLite('EricEdwardBryant/screenmill')
 ```
