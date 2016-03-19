@@ -25,5 +25,8 @@ Imports:
     rstudioapi (>= 0.5),
     rhandsontable (>= 0.3.1)
 Suggests:
-    ggplot2
+    ggplot2,
+    rothfreezer
+Remotes:
+    github::EricEdwardBryant/rothfreezer
 RoxygenNote: 5.0.1
