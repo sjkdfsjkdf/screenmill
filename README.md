@@ -20,7 +20,7 @@ if (!require('BiocInstaller') || packageVersion('BiocInstaller') < '1.18.0') {
   source('https://bioconductor.org/biocLite.R')  # use 'http' if 404 on 'https'
 }
 
-# Install devtools (>= 1.9.1)
+# devtools (>= 1.9.1) supports installation of GitHub "Remotes" in DESCRIPTION
 if (!require('devtools') || packageVersion('devtools') < '1.9.1') {
   install.packages('devtools')
 }
