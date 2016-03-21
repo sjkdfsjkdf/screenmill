@@ -75,6 +75,19 @@ annotate_plates <- function(dir = NULL,
       select(name, time, group) %>%
       distinct
 
+    # Check that there is only one timepoint for each name
+    verify_tbl1 <- count(vars$tbl1, name) %>% filter(n > 1)
+    if (nrow(verify_tbl1) > 0) {
+      print(vars$tbl1[which(vars$tbl1$name %in% verify_tbl1$name), ])
+      stop(
+        paste(
+          'Image names do not uniquely map to end time and group number. Please',
+          'fix these issues in the previously saved annotation data located at:\n',
+          paste0(home, '/screenmill-plate-annotations.csv')
+        )
+      )
+    }
+
     vars$tbl2 <-
       vars$tbl %>%
       select(group, crop_template, start, positions, temperature) %>%
@@ -154,10 +167,11 @@ annotate_plates <- function(dir = NULL,
       if (reset$tbl1) {
         vars$tbl1 <-
           images %>%
-          left_join(rename(vars$tbl1, restore = group), by = c('name', 'time')) %>%
+          left_join(rename(vars$tbl1, old_group = group, old_time = time), by = 'name') %>%
           mutate(
             group = switch(input$ts, Yes = time_series, No = standard),
-            group = ifelse(is.na(restore), group, restore) # restore saved groups
+            group = ifelse(is.na(old_group), group, old_group), # restore saved groups
+            time  = ifelse(is.na(old_time), time, old_time)     # restore saved time
           ) %>%
           select(name, time, group)
         vars$tbl1
