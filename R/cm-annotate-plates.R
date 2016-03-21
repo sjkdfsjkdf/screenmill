@@ -3,8 +3,8 @@
 #' This function starts a Shiny gadget that allows a user to record information
 #' about plate images for arrayed colony growth experiments.
 #'
-#' @param dir The directory containing images to annotate. Default setting
-#' prompts the user to choose a file.
+#' @param dir The directory containing images to annotate. If \code{NULL} the
+#' user will be prompted to choose a directory.
 #' @param queries An optional vector of available query IDs.
 #' @param strain_collections An optional vector of available strain collection IDs.
 #' @param media An optional vector of available media IDs.
@@ -23,16 +23,19 @@
 #' To quit without saving, just press "Cancel".
 #'
 #' @importFrom readr write_csv read_csv
+#' @importFrom tcltk tk_choose.dir
 #' @export
 
-annotate_plates <- function(dir = file.choose(),
+annotate_plates <- function(dir = NULL,
                             queries = NULL,
                             strain_collections = NULL,
                             media = NULL,
                             treatments = NULL,
                             temperatures = c(23, 27, 30, 33, 37)) {
   # ---- Setup ----
-  dir  <- dirname(dir)
+  if (is.null(dir)) {
+    dir <- tcltk::tk_choose.dir(caption = 'Where are the images you wish to process?')
+  }
   home <- setwd(dir)
   on.exit(setwd(home))
 
@@ -115,67 +118,6 @@ annotate_plates <- function(dir = file.choose(),
   w_treat <- max(75,  max(nchar(treatments)) * 12)
   w_image <- max(30,  max(nchar(images$name)) * 10)
   w_tbl3  <- c(45, w_image, 60, w_colle, 40, w_query, w_treat, w_media)
-
-  # ---- UI ----
-  ui <-
-    miniPage(
-      gadgetTitleBar('New Screen', right = miniTitleBarButton('save', 'Save', primary = TRUE)),
-      miniContentPanel(
-        textInput('user', label = NULL, value = vars$user, placeholder = 'Name'),
-        textInput('email', label = NULL, value = vars$email, placeholder = 'Email'),
-        # Table 1: Group Images
-        h2('Group Images'),
-        radioButtons(
-          'ts',
-          h4('Time-series?', style = 'max-width: 800px'),
-          c('Yes', 'No'),
-          selected = vars$ts,
-          inline = T
-        ),
-        h3(style = 'max-width: 800px', tags$small(
-          'Please review the following fields for each image:',
-          h4(tags$small(tags$dl(
-            class = 'dl-horizontal',
-            tags$dt(code('group'),
-              tags$dd('Image groups will be cropped using the most recent image
-                in the group as a template (e.g. the last timepoint in a
-                time-series). Edit this field to ensure all images within a
-                group are assigned the same number.'))
-          )))
-        )),
-        rHandsontableOutput('tbl1'),
-        # Table 2: Annotate Groups
-        h2('Annotate Groups'),
-        h3(style = 'max-width: 800px', tags$small(
-          'Please review the following fields for each group:',
-          h4(tags$small(tags$dl(
-            class = 'dl-horizontal',
-            tags$dt(code('start'),
-              tags$dd('Incubation start time is inferred from the earliest image
-              within a group. If this is incorrect, please edit the start time using
-              the', strong('YYYY-MM-DD hh:mm:ss'), 'format.')),
-            tags$dt(code('positions'), tags$dd('The number of plate positions in the group.')),
-            tags$dt(code('temperature'), tags$dd('The incubation temperature of the group.'))
-          )))
-        )),
-        rHandsontableOutput('tbl2'),
-        # Table 3: Annotate Plates
-        h2('Annotate Plates'),
-        h3(style = 'max-width: 800px', tags$small(
-          'Please review the following fields for each plate position in each group:',
-          h4(tags$small(strong('Positions in raw images are numbered from left to right, top to bottom'))),
-          h4(tags$small(tags$dl(
-            class = 'dl-horizontal',
-            tags$dt(code('strain_collection_id'), tags$dd('A unique ID for the strain collection used.')),
-            tags$dt(code('plate'), tags$dd('The strain collection plate number.')),
-            tags$dt(code('query_id'), tags$dd('A unique ID for the genetic query condition (e.g. a plasmid, an allele or a strain).')),
-            tags$dt(code('treatment_id'), tags$dd('A unique ID for the treatment condition (e.g. drug treatment or irradiation).')),
-            tags$dt(code('media_id'), tags$dd('A unique ID for the base growth media (should not including treatment condition).'))
-          )))
-        )),
-        rHandsontableOutput('tbl3')
-      )
-    )
 
   # ---- Server ----
   server <- function(input, output, session) {
@@ -343,6 +285,89 @@ annotate_plates <- function(dir = file.choose(),
       stopApp(annotation_path)
     })
   }
+
+
+  # ---- UI ----
+  ui <-
+    miniPage(
+      gadgetTitleBar(
+        'Annotate Plates',
+        right = miniTitleBarButton('save', 'Save and begin crop calibration', primary = TRUE)
+      ),
+      miniContentPanel(
+        textInput('user', label = NULL, value = vars$user, placeholder = 'Name'),
+        textInput('email', label = NULL, value = vars$email, placeholder = 'Email'),
+        # Table 1: Group Images
+        h2('Group Images'),
+        radioButtons(
+          'ts',
+          h4('Time-series?', style = 'max-width: 800px'),
+          c('Yes', 'No'),
+          selected = vars$ts,
+          inline = T
+        ),
+        h3(style = 'max-width: 800px', tags$small(
+          'Please review the following fields for each image:',
+          h4(tags$small(tags$dl(
+            class = 'dl-horizontal',
+            tags$dt(code('group'),
+                    tags$dd(
+                      'Image groups will be cropped using the most recent image
+                      in the group as a template (e.g. the last timepoint in a
+                      time-series). Edit this field to ensure all images within
+                      a group are assigned the same number.'))
+          )))
+        )),
+        rHandsontableOutput('tbl1'),
+        # Table 2: Annotate Groups
+        h2('Annotate Groups'),
+        h3(style = 'max-width: 800px', tags$small(
+          'Please review the following fields for each group:',
+          h4(tags$small(tags$dl(
+            class = 'dl-horizontal',
+            tags$dt(code('start'),
+                    tags$dd(
+                      'Incubation start time is inferred from the earliest image
+                      within a group. If this is incorrect, please edit the
+                      start time using the', strong('YYYY-MM-DD hh:mm:ss'),
+                      'format.')),
+            tags$dt(code('positions'),
+                    tags$dd('The number of plate positions in the group.')),
+            tags$dt(code('temperature'),
+                    tags$dd('The incubation temperature of the group.'))
+          )))
+        )),
+        rHandsontableOutput('tbl2'),
+        # Table 3: Annotate Plates
+        h2('Annotate Plates'),
+        h3(style = 'max-width: 800px', tags$small(
+          'Please review the following fields for each plate position in each group:',
+          h4(tags$small(strong(
+            'Positions in raw images are numbered from left to right, top to bottom'))),
+          h4(tags$small(tags$dl(
+            class = 'dl-horizontal',
+            tags$dt(code('strain_collection_id'),
+                    tags$dd('A unique ID for the strain collection used.')),
+            tags$dt(code('plate'),
+                    tags$dd('The strain collection plate number.')),
+            tags$dt(code('query_id'),
+                    tags$dd(
+                      'A unique ID for the genetic query condition (e.g. a
+                      plasmid, an allele or a strain).')),
+            tags$dt(code('treatment_id'),
+                    tags$dd(
+                      'A unique ID for the treatment condition (e.g. drug
+                      treatment or irradiation).')),
+            tags$dt(code('media_id'),
+                    tags$dd(
+                      'A unique ID for the base growth media (should not
+                      including treatment condition).'))
+          )))
+        )),
+        rHandsontableOutput('tbl3')
+      )
+    )
+
 
   # ---- Run ----
   runGadget(ui, server, viewer = dialogViewer('New Screen', width = 1100, height = 1000))

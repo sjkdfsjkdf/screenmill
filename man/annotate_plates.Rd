@@ -4,13 +4,12 @@
 \alias{annotate_plates}
 \title{RStudio Addin for annotating plate images}
 \usage{
-annotate_plates(dir = file.choose(), queries = NULL,
-  strain_collections = NULL, media = NULL, treatments = NULL,
-  temperatures = c(23, 27, 30, 33, 37))
+annotate_plates(dir = NULL, queries = NULL, strain_collections = NULL,
+  media = NULL, treatments = NULL, temperatures = c(23, 27, 30, 33, 37))
 }
 \arguments{
-\item{dir}{The directory containing images to annotate. Default setting
-prompts the user to choose a file.}
+\item{dir}{The directory containing images to annotate. If \code{NULL} the
+user will be prompted to choose a directory.}
 
 \item{queries}{An optional vector of available query IDs.}
 
