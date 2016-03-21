@@ -4,16 +4,13 @@
 \alias{annotate_plates}
 \title{RStudio Addin for annotating plate images}
 \usage{
-annotate_plates(dir = file.choose(), n_positions = 9L, queries = NULL,
+annotate_plates(dir = file.choose(), queries = NULL,
   strain_collections = NULL, media = NULL, treatments = NULL,
   temperatures = c(23, 27, 30, 33, 37))
 }
 \arguments{
 \item{dir}{The directory containing images to annotate. Default setting
 prompts the user to choose a file.}
-
-\item{n_positions}{The default number of plate positions per image
-(defaults to \code{9L}).}
 
 \item{queries}{An optional vector of available query IDs.}
 

@@ -5,8 +5,6 @@
 #'
 #' @param dir The directory containing images to annotate. Default setting
 #' prompts the user to choose a file.
-#' @param n_positions The default number of plate positions per image
-#' (defaults to \code{9L}).
 #' @param queries An optional vector of available query IDs.
 #' @param strain_collections An optional vector of available strain collection IDs.
 #' @param media An optional vector of available media IDs.
@@ -24,31 +22,71 @@
 #'
 #' To quit without saving, just press "Cancel".
 #'
-#' @importFrom readr write_csv
+#' @importFrom readr write_csv read_csv
 #' @export
 
 annotate_plates <- function(dir = file.choose(),
-                            n_positions = 9L,
                             queries = NULL,
                             strain_collections = NULL,
                             media = NULL,
                             treatments = NULL,
                             temperatures = c(23, 27, 30, 33, 37)) {
-
-  dir <- dirname(dir)
+  # ---- Setup ----
+  dir  <- dirname(dir)
   home <- setwd(dir)
   on.exit(setwd(home))
 
-  # ---- Setup ----
-  images <-
-    image_data() %>%
-    mutate(
-      standard = 1:n(),
-      time_series = guess_groups(time),
-      time = as.character(time)
-    )
+  # Get information about images - path, name, standard, time_series, time
+  images <- image_data()
 
-  # Get known values from database rothfreezer database if available
+  # Initialize variables
+  vars <- list()
+  if (!file.exists('screenmill-plate-annotations.csv')) {
+    # Set default variables
+    vars$user  <- NULL
+    vars$email <- NULL
+    vars$ts    <- 'Yes'
+
+    # Table 1: Image groups keys | name, time
+    vars$tbl1 <- read_csv('name,time,group\n', col_types = 'cci')
+
+    # Table 2: Group annotation keys | group, crop_template
+    vars$tbl2  <- read_csv('group,crop_template,start,positions,temperature\n', col_types = 'iccin')
+
+    # Table 3: Plate annotation keys | group, crop_template, position
+    vars$tbl3  <- read_csv('group,crop_template,position,strain_collection_id,plate,query_id,treatment_id,media_id\n', col_types = 'iciciccc')
+  } else {
+    # Restore variables
+    vars$tbl <-
+      read_csv('screenmill-plate-annotations.csv', col_types = 'cccciicicccncicccc') %>%
+      group_by(name, group) %>%
+      mutate(positions = n(), time = end) %>%
+      ungroup
+
+    vars$user  <- vars$tbl$owner[1]
+    vars$email <- vars$tbl$email[1]
+    vars$ts    <- vars$tbl$time_series[1]
+
+    vars$tbl1 <-
+      vars$tbl %>%
+      select(name, time, group) %>%
+      distinct
+
+    vars$tbl2 <-
+      vars$tbl %>%
+      select(group, crop_template, start, positions, temperature) %>%
+      distinct
+
+    vars$tbl3 <-
+      vars$tbl %>%
+      select(
+        group, crop_template, position, strain_collection_id, plate, query_id,
+        treatment_id, media_id
+      ) %>%
+      distinct
+  }
+
+  # Get known values from rothfreezer database if available
   if (requireNamespace('rothfreezer', quietly = T)) {
     db <- rothfreezer::src_rothfreezer()
     if (is.null(strain_collections)) {
@@ -70,12 +108,12 @@ annotate_plates <- function(dir = file.choose(),
     }
   }
 
-  # Determine column widths as ~8-13 pixels per character
+  # Determine column widths as ~10-13 pixels per character
   w_query <- max(65,  max(nchar(queries)) * 13)
-  w_colle <- max(160, max(nchar(strain_collections)) * 8)
+  w_colle <- max(160, max(nchar(strain_collections)) * 10)
   w_media <- max(40,  max(nchar(media)) * 12)
   w_treat <- max(75,  max(nchar(treatments)) * 12)
-  w_image <- max(30,  max(nchar(images$name)) * 8)
+  w_image <- max(30,  max(nchar(images$name)) * 10)
   w_tbl3  <- c(45, w_image, 60, w_colle, 40, w_query, w_treat, w_media)
 
   # ---- UI ----
@@ -83,15 +121,15 @@ annotate_plates <- function(dir = file.choose(),
     miniPage(
       gadgetTitleBar('New Screen', right = miniTitleBarButton('save', 'Save', primary = TRUE)),
       miniContentPanel(
-        textInput('user', label = NULL, placeholder = 'Name'),
-        textInput('email', label = NULL, placeholder = 'Email'),
+        textInput('user', label = NULL, value = vars$user, placeholder = 'Name'),
+        textInput('email', label = NULL, value = vars$email, placeholder = 'Email'),
         # Table 1: Group Images
         h2('Group Images'),
         radioButtons(
-          'time_series',
+          'ts',
           h4('Time-series?', style = 'max-width: 800px'),
           c('Yes', 'No'),
-          selected = 'Yes',
+          selected = vars$ts,
           inline = T
         ),
         h3(style = 'max-width: 800px', tags$small(
@@ -99,7 +137,7 @@ annotate_plates <- function(dir = file.choose(),
           h4(tags$small(tags$dl(
             class = 'dl-horizontal',
             tags$dt(code('group'),
-              tags$dd('Images groups will be cropped using the most recent image
+              tags$dd('Image groups will be cropped using the most recent image
                 in the group as a template (e.g. the last timepoint in a
                 time-series). Edit this field to ensure all images within a
                 group are assigned the same number.'))
@@ -150,13 +188,13 @@ annotate_plates <- function(dir = file.choose(),
     # edited by the user then, those edits should be stored, and all downstream
     # tables should be updated.
     reset <- reactiveValues(tbl1 = T, tbl2 = T, tbl3 = T)
-    observeEvent(input$time_series, {
+    observeEvent(input$ts, {
       reset$tbl1 <- T
       reset$tbl2 <- T
       reset$tbl3 <- T
     })
     observeEvent(input$tbl1, {
-      reset$tbl1 <- F  # when user edits tbl1, update tbl1() reactive to use edits
+      reset$tbl1 <- F  # when edit tbl1, update tbl1() reactive to use edits
       reset$tbl2 <- T  # all dependencies will reset
       reset$tbl3 <- T
     })
@@ -169,16 +207,21 @@ annotate_plates <- function(dir = file.choose(),
     })
 
 
-    # Table 1: Image groups
-    # keys | name, time
-    # edit | group
+    # Table 1: Image groups keys | name, time ---------------------------------
     tbl1 <- reactive({
       if (reset$tbl1) {
-        images %>%
-          mutate(group = switch(input$time_series, Yes = time_series, No = standard)) %>%
-          select(-path, -time_series, -standard)
+        vars$tbl1 <-
+          images %>%
+          left_join(rename(vars$tbl1, restore = group), by = c('name', 'time')) %>%
+          mutate(
+            group = switch(input$ts, Yes = time_series, No = standard),
+            group = ifelse(is.na(restore), group, restore) # restore saved groups
+          ) %>%
+          select(name, time, group)
+        vars$tbl1
       } else {
-        hot_to_r(input$tbl1) %>% filter(complete.cases(.))
+        vars$tbl1 <- hot_to_r(input$tbl1) %>% filter(complete.cases(.))
+        vars$tbl1
       }
     })
 
@@ -191,12 +234,11 @@ annotate_plates <- function(dir = file.choose(),
     })
 
 
-    # Table 2: Group annotation
-    # keys | group, crop_template
-    # edit | start, positions, temperature
+    # Table 2: Group annotation keys | group, crop_template -------------------
     tbl2 <- reactive({
       if (reset$tbl2) {
-        tbl1() %>%
+        vars$tbl2 <-
+          tbl1() %>%
           group_by(group) %>%
           mutate(
             Ptime = as.POSIXct(time),
@@ -206,10 +248,18 @@ annotate_plates <- function(dir = file.choose(),
           ungroup %>%
           select(group, crop_template, start) %>%
           distinct %>%
+          left_join(rename(vars$tbl2, r_start = start), by = c('group', 'crop_template')) %>%
+          mutate(
+            start       = ifelse(is.na(r_start), start, r_start),
+            positions   = ifelse(is.na(positions), 1L, positions),
+            temperature = ifelse(is.na(temperature), 30, temperature)
+          ) %>%
           arrange(group) %>%
-          mutate(positions = n_positions, temperature = 30L)
+          select(group, crop_template, start, positions, temperature)
+        vars$tbl2
       } else {
-        hot_to_r(input$tbl2) %>% filter(complete.cases(.))
+        vars$tbl2 <- hot_to_r(input$tbl2) %>% filter(complete.cases(.))
+        vars$tbl2
       }
     })
 
@@ -234,36 +284,21 @@ annotate_plates <- function(dir = file.choose(),
     })
 
 
-
-    # Table 3: Plate annotation
-    # keys | group, crop_template, position
-    # edit | strain_collection_id, plate, query_id, treatment_id, media_id
+    # Table 3: Plate annotation keys | group, crop_template, position ---------
     tbl3 <- reactive({
-      if (reset$tbl3 && is.null(input$tbl3)) {
-        tbl2() %>%
+      if (reset$tbl3) {
+        vars$tbl3 <-
+          tbl2() %>%
           select(group, crop_template, positions) %>%
           group_by(group, crop_template) %>%
           do(data_frame(position = 1:.$positions[1])) %>%
           ungroup %>%
-          mutate(
-            strain_collection_id = '',
-            plate = '',
-            query_id = '',
-            treatment_id = '',
-            media_id = ''
-          )
-      } else if (reset$tbl3) {
-        right_join(
-          hot_to_r(input$tbl3) %>% filter(complete.cases(.)),
-          tbl2() %>%
-            select(group, crop_template, positions) %>%
-            group_by(group, crop_template) %>%
-            do(data_frame(position = 1:.$positions[1])) %>%
-            ungroup,
-          by = c('group', 'crop_template', 'position')
-        )
+          left_join(vars$tbl3, by = c('group', 'crop_template', 'position')) %>%
+          mutate_each(funs(ifelse(is.na(.), '', .)))
+        vars$tbl3
       } else {
-        hot_to_r(input$tbl3) %>% filter(complete.cases(.))
+        vars$tbl3 <- hot_to_r(input$tbl3) %>% filter(complete.cases(.))
+        vars$tbl3
       }
     })
 
@@ -294,14 +329,16 @@ annotate_plates <- function(dir = file.choose(),
         mutate(
           date = as.Date(start),
           timepoint = 1:n(),
-          owner = input$user,
-          email = input$email
+          owner = (input$user),
+          email = (input$email),
+          time_series = (input$ts)
         ) %>%
         select(
-          date, name, path, group, position, strain_collection_id, plate, query_id,
-          treatment_id, media_id, temperature, timepoint, start, end = time
+          date, name, path, crop_template, group, position,
+          strain_collection_id, plate, query_id, treatment_id, media_id,
+          temperature, time_series, timepoint, start, end = time, owner, email
         ) %>%
-        write_csv('plate-annotations.csv')
+        write_csv('screenmill-plate-annotations.csv')
 
       stopApp(annotation_path)
     })
@@ -325,7 +362,12 @@ image_data <- function(dir = '.', ext =  '\\.tiff?$|\\.jpe?g$|\\.png$') {
     name  = gsub(ext, '', basename(path)),
     time  = file.info(path)$mtime
   ) %>%
-  arrange(desc(time))
+  arrange(desc(time)) %>%
+  mutate(
+    standard = 1:n(),
+    time_series = guess_groups(time),
+    time = as.character(time)
+  )
 }
 
 guess_groups <- function(time) {
