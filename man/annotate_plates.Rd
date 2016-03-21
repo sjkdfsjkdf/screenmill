@@ -4,25 +4,33 @@
 \alias{annotate_plates}
 \title{RStudio Addin for annotating plate images}
 \usage{
-annotate_plates(dir = NULL, queries = NULL, strain_collections = NULL,
-  media = NULL, treatments = NULL, temperatures = c(23, 27, 30, 33, 37))
+annotate_plates(dir = NULL, queries = getOption("screenmill.queries"),
+  strain_collections = getOption("screenmill.strain_collections"),
+  media = getOption("screenmill.media"),
+  treatments = getOption("screenmill.treatments"), temperatures = c(23, 27,
+  30, 33, 37))
 }
 \arguments{
 \item{dir}{The directory containing images to annotate. If \code{NULL} the
 user will be prompted to choose a directory.}
 
-\item{queries}{An optional vector of available query IDs.}
+\item{queries}{A vector, or dataframe of available queries. Uses
+\code{getOption('screenmill.queries')} by default (see Details).}
 
-\item{strain_collections}{An optional vector of available strain collection IDs.}
+\item{strain_collections}{A vector, or dataframe of available strain
+collections. Uses \code{getOption('screenmill.strain_collections')}
+(see Details).}
 
-\item{media}{An optional vector of available media IDs.}
+\item{media}{A vector, or dataframe of available media. Uses
+\code{getOption('screenmill.media')} by default(see Details).}
 
-\item{treatments}{An optional vector of available treatment IDs.}
+\item{treatments}{A vector or dataframe of available treatments. Uses
+\code{getOption('screenmill.treatments')} by default (see Details).}
 
 \item{temperatures}{A vector of recommended temperatures.}
 }
 \description{
-This function starts a Shiny gadget that allows a user to record information
+This function launches a Shiny gadget that allows a user to record information
 about plate images for arrayed colony growth experiments.
 }
 \details{

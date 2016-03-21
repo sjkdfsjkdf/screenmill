@@ -1,14 +1,19 @@
 #' RStudio Addin for annotating plate images
 #'
-#' This function starts a Shiny gadget that allows a user to record information
+#' This function launches a Shiny gadget that allows a user to record information
 #' about plate images for arrayed colony growth experiments.
 #'
 #' @param dir The directory containing images to annotate. If \code{NULL} the
 #' user will be prompted to choose a directory.
-#' @param queries An optional vector of available query IDs.
-#' @param strain_collections An optional vector of available strain collection IDs.
-#' @param media An optional vector of available media IDs.
-#' @param treatments An optional vector of available treatment IDs.
+#' @param queries A vector, or dataframe of available queries. Uses
+#' \code{getOption('screenmill.queries')} by default (see Details).
+#' @param strain_collections A vector, or dataframe of available strain
+#' collections. Uses \code{getOption('screenmill.strain_collections')}
+#' (see Details).
+#' @param media A vector, or dataframe of available media. Uses
+#' \code{getOption('screenmill.media')} by default(see Details).
+#' @param treatments A vector or dataframe of available treatments. Uses
+#' \code{getOption('screenmill.treatments')} by default (see Details).
 #' @param temperatures A vector of recommended temperatures.
 #'
 #' @details This application is provided to make annotation of plates in
@@ -27,10 +32,10 @@
 #' @export
 
 annotate_plates <- function(dir = NULL,
-                            queries = NULL,
-                            strain_collections = NULL,
-                            media = NULL,
-                            treatments = NULL,
+                            queries = getOption('screenmill.queries'),
+                            strain_collections = getOption('screenmill.strain_collections'),
+                            media = getOption('screenmill.media'),
+                            treatments = getOption('screenmill.treatments'),
                             temperatures = c(23, 27, 30, 33, 37)) {
   # ---- Setup ----
   if (is.null(dir)) {
@@ -75,6 +80,19 @@ annotate_plates <- function(dir = NULL,
       select(name, time, group) %>%
       distinct
 
+    # Check that there is only one timepoint for each name
+    verify_tbl1 <- count(vars$tbl1, name) %>% filter(n > 1)
+    if (nrow(verify_tbl1) > 0) {
+      print(vars$tbl1[which(vars$tbl1$name %in% verify_tbl1$name), ])
+      stop(
+        paste(
+          'Image names do not uniquely map to end time and group number. Please',
+          'fix these issues in the previously saved annotation data located at:\n',
+          paste0(home, '/screenmill-plate-annotations.csv')
+        )
+      )
+    }
+
     vars$tbl2 <-
       vars$tbl %>%
       select(group, crop_template, start, positions, temperature) %>%
@@ -93,31 +111,44 @@ annotate_plates <- function(dir = NULL,
   if (requireNamespace('rothfreezer', quietly = T)) {
     db <- rothfreezer::src_rothfreezer()
     if (is.null(strain_collections)) {
-      strain_collections <-
-        tbl(db, 'strain_collections') %>%
-        select(strain_collection_id) %>%
-        distinct %>%
-        collect %>%
-        .$strain_collection_id
+      strain_collections <- collect(tbl(db, 'strain_collection_info'))
     }
     if (is.null(queries)) {
-      queries <- collect(select(tbl(db, 'queries'), query_id))$query_id
+      queries <- collect(tbl(db, 'queries'))
     }
     if (is.null(treatments)) {
-      treatments <- collect(select(tbl(db, 'treatments'), treatment_id))$treatment_id
+      treatments <- collect(tbl(db, 'treatments'))
     }
     if (is.null(media)) {
-      media <- collect(select(tbl(db, 'media'), media_id))$media_id
+      media <- collect(tbl(db, 'media'))
     }
   }
 
+  # Coerce vector input to dataframe input
+  if (is.vector(strain_collections)) {
+    strain_collections <- data_frame(strain_collection_id = strain_collections)
+  }
+  if (is.vector(queries)) {
+    queries <- data_frame(query_id = queries)
+  }
+  if (is.vector(treatments)) {
+    treatments <- data_frame(treatment_id = treatments)
+  }
+  if (is.vector(media)) {
+    media <- data_frame(media_id = media)
+  }
+
   # Determine column widths as ~10-13 pixels per character
-  w_query <- max(65,  max(nchar(queries)) * 13)
-  w_colle <- max(160, max(nchar(strain_collections)) * 10)
-  w_media <- max(40,  max(nchar(media)) * 12)
-  w_treat <- max(75,  max(nchar(treatments)) * 12)
-  w_image <- max(30,  max(nchar(images$name)) * 10)
-  w_tbl3  <- c(45, w_image, 60, w_colle, 40, w_query, w_treat, w_media)
+  if (!is.null(strain_collections) && !is.null(queries) && !is.null(treatments) && !is.null(media)) {
+    w_query <- max(65,  max(nchar(queries$query_id)) * 13)
+    w_colle <- max(160, max(nchar(strain_collections$strain_collection_id)) * 10)
+    w_media <- max(40,  max(nchar(media$media_id)) * 12)
+    w_treat <- max(75,  max(nchar(treatments$treatment_id)) * 12)
+    w_image <- max(130,  max(nchar(images$name)) * 10)
+    w_tbl3  <- c(45, w_image, 60, w_colle, 40, w_query, w_treat, w_media)
+  } else {
+    w_tbl3 <- NULL
+  }
 
   # ---- Server ----
   server <- function(input, output, session) {
@@ -154,10 +185,11 @@ annotate_plates <- function(dir = NULL,
       if (reset$tbl1) {
         vars$tbl1 <-
           images %>%
-          left_join(rename(vars$tbl1, restore = group), by = c('name', 'time')) %>%
+          left_join(rename(vars$tbl1, old_group = group, old_time = time), by = 'name') %>%
           mutate(
             group = switch(input$ts, Yes = time_series, No = standard),
-            group = ifelse(is.na(restore), group, restore) # restore saved groups
+            group = ifelse(is.na(old_group), group, old_group), # restore saved groups
+            time  = ifelse(is.na(old_time), time, old_time)     # restore saved time
           ) %>%
           select(name, time, group)
         vars$tbl1
@@ -171,7 +203,7 @@ annotate_plates <- function(dir = NULL,
       tbl1() %>%
         rhandsontable(height = min(c(23 * nrow(.) + 50, 300))) %>%
         hot_col(c('name', 'time'), readOnly = T) %>%
-        hot_validate_numeric('group') %>%
+        hot_validate_numeric('group', allowInvalid = TRUE) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
 
@@ -221,7 +253,7 @@ annotate_plates <- function(dir = NULL,
              }'
         ) %>%
         hot_col('temperature', type = 'autocomplete', source = temperatures) %>%
-        hot_validate_numeric(c('positions', 'temperature')) %>%
+        hot_validate_numeric(c('positions', 'temperature'), allowInvalid = TRUE) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
 
@@ -248,15 +280,21 @@ annotate_plates <- function(dir = NULL,
       tbl3() %>%
         rhandsontable(height = 23 * nrow(.) + 50) %>%
         hot_col(c('group', 'crop_template', 'position'), readOnly = T) %>%
-        hot_col('query_id', type = 'autocomplete', source = queries) %>%
-        hot_col('strain_collection_id', type = 'autocomplete', source = strain_collections) %>%
-        hot_validate_numeric('plate') %>%
-        hot_col('treatment_id', type = 'autocomplete', source = treatments) %>%
-        hot_col('media_id', type = 'autocomplete', source = media) %>%
+        hot_col('query_id', type = 'autocomplete', source = queries$query_id) %>%
+        hot_col('strain_collection_id', type = 'autocomplete', source = strain_collections$strain_collection_id) %>%
+        hot_validate_numeric('plate', allowInvalid = TRUE) %>%
+        hot_col('treatment_id', type = 'autocomplete', source = treatments$treatment_id) %>%
+        hot_col('media_id', type = 'autocomplete', source = media$media_id) %>%
         hot_cols(colWidths = w_tbl3) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
 
+
+    # Lookup tables -----------------------------------------------------------
+    output$strain_collections <- renderDataTable(strain_collections, options = list(pageLength = 5))
+    output$queries <- renderDataTable(queries, options = list(pageLength = 5))
+    output$treatments <- renderDataTable(treatments, options = list(pageLength = 5))
+    output$media <- renderDataTable(media, options = list(pageLength = 5))
 
     # On Click Save -----------------------------------------------------------
     observeEvent(input$save, {
@@ -292,7 +330,7 @@ annotate_plates <- function(dir = NULL,
     miniPage(
       gadgetTitleBar(
         'Annotate Plates',
-        right = miniTitleBarButton('save', 'Save and begin crop calibration', primary = TRUE)
+        right = miniTitleBarButton('save', 'Save', primary = TRUE)
       ),
       miniContentPanel(
         textInput('user', label = NULL, value = vars$user, placeholder = 'Name'),
@@ -364,7 +402,17 @@ annotate_plates <- function(dir = NULL,
                       including treatment condition).'))
           )))
         )),
-        rHandsontableOutput('tbl3')
+        rHandsontableOutput('tbl3'),
+        # Lookup tables
+        h2('Lookup tables'),
+        h2(tags$small('Strain collections')),
+        dataTableOutput('strain_collections'),
+        h2(tags$small('Queries')),
+        dataTableOutput('queries'),
+        h2(tags$small('Treatments')),
+        dataTableOutput('treatments'),
+        h2(tags$small('Media')),
+        dataTableOutput('media')
       )
     )
 
