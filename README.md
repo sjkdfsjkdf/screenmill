@@ -9,7 +9,7 @@ the `BiocInstaller` package is less than version `1.18.0` you should upgrade
 your installation of Bioconductor. Installing packages from GitHub through
 Bioconductor's `BiocInstaller::biocLite` function also requires `devtools`. Run 
 the code below to install all necessary dependencies. If there is an issue installing
-Bioconductor, try using `http` instead of `https`. ‚
+Bioconductor, try using `'http'` instead of `'https'`.
 
 ```r
 # BiocInstaller (>= 1.18.0) supports GitHub packages with Bioconductor dependencies
