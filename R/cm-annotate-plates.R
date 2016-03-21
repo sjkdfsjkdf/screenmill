@@ -306,7 +306,7 @@ annotate_plates <- function(dir = NULL,
     miniPage(
       gadgetTitleBar(
         'Annotate Plates',
-        right = miniTitleBarButton('save', 'Save and begin crop calibration', primary = TRUE)
+        right = miniTitleBarButton('save', 'Save', primary = TRUE)
       ),
       miniContentPanel(
         textInput('user', label = NULL, value = vars$user, placeholder = 'Name'),
