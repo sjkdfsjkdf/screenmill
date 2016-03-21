@@ -25,5 +25,6 @@ if (!require('devtools') || packageVersion('devtools') < '1.9.1') {
   install.packages('devtools')
 }
 
+# Install/update screenmill
 biocLite('EricEdwardBryant/screenmill')
 ```
