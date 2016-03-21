@@ -4,11 +4,14 @@ Tools for working with [ScreenMill](http://www.rothsteinlab.com/tools/screen_mil
 
 ## Installation
 
-The `screenmill` *R* package depends on the `EBImage` package from [Bioconductor](http://bioconductor.org/install/). If your installation of 
-the `BiocInstaller` package is less than version `1.18.0` you should upgrade 
-your installation of Bioconductor. Installing packages from GitHub through
-Bioconductor's `BiocInstaller::biocLite` function also requires `devtools`. Run 
-the code below to install all necessary dependencies. If there is an issue installing
+The `screenmill` *R* package depends on the 
+[EBImage](http://bioconductor.org/packages/release/bioc/html/EBImage.html) package from 
+[Bioconductor](http://bioconductor.org/install/). If
+[BiocInstaller](http://bioconductor.org/packages/release/bioc/html/BiocInstaller.html) 
+is less than version `1.18.0` you will need to upgrade. Installing packages from 
+GitHub via `BiocInstaller::biocLite` also requires 
+[devtools](https://github.com/hadley/devtools). Run the code below to install 
+all necessary dependencies described above. If there is an issue updating/installing
 Bioconductor, try using `'http'` instead of `'https'`.
 
 ```r
