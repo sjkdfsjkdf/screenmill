@@ -26,5 +26,5 @@ if (!require('devtools') || packageVersion('devtools') < '1.9.1') {
 }
 
 # Install/update screenmill
-biocLite('EricEdwardBryant/screenmill')
+BiocInstaller::biocLite('EricEdwardBryant/screenmill')
 ```
