@@ -352,12 +352,14 @@ annotate_plates <- function(dir = NULL,
           'Please review the following fields for each image:',
           h4(tags$small(tags$dl(
             class = 'dl-horizontal',
-            tags$dt(code('group'),
-                    tags$dd(
-                      'Image groups will be cropped using the most recent image
-                      in the group as a template (e.g. the last timepoint in a
-                      time-series). Edit this field to ensure all images within
-                      a group are assigned the same number.'))
+            tags$dt(
+              code('group'),
+              tags$dd(
+                'Images that are part of a time-series (i.e. repeated scans
+                of the same set of plates) need to be grouped. Edit this field
+                to ensure all images within a series are assigned the same
+                group number.'
+            ))
           )))
         )),
         rHandsontableOutput('tbl1'),
