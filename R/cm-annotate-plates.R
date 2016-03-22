@@ -28,7 +28,6 @@
 #' To quit without saving, just press "Cancel".
 #'
 #' @importFrom readr write_csv read_csv
-#' @importFrom tcltk tk_choose.dir
 #' @export
 
 annotate_plates <- function(dir = NULL,
@@ -39,7 +38,12 @@ annotate_plates <- function(dir = NULL,
                             temperatures = c(23, 27, 30, 33, 37)) {
   # ---- Setup ----
   if (is.null(dir)) {
-    dir <- tcltk::tk_choose.dir(caption = 'Where are the images you wish to process?')
+    if (requireNamespace('tcltk', quietly = TRUE)) {
+      dir <- tcltk::tk_choose.dir(caption = 'Where are the images you wish to process?')
+    } else {
+      message('Choose a file in the directory of images you wish to process.')
+      dir <- file.choose()
+    }
   }
   home <- setwd(dir)
   on.exit(setwd(home))

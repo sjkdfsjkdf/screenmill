@@ -27,7 +27,8 @@ Imports:
     readr
 Suggests:
     ggplot2,
-    rothfreezer
+    rothfreezer,
+    tcltk
 Remotes:
     github::EricEdwardBryant/rothfreezer
 RoxygenNote: 5.0.1
