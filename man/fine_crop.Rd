@@ -4,7 +4,7 @@
 \alias{fine_crop}
 \title{Fine crop plates}
 \usage{
-fine_crop(img, rotate, range, incr, pad, invert)
+fine_crop(img, rotate, range, step, pad, invert)
 }
 \arguments{
 \item{img}{Image}

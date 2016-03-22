@@ -1,26 +1,103 @@
-# ---- Crop ----
+# ---- Calibrate Cropping ----
+#' Calibrate cropping and rotation parameters
+#'
+#' This function calibrates plate cropping and rotation parameters for an image
+#' with an arbritrarily sized grid of plates.
+#'
+#' @param annotations Path to a screenmill plate annotations CSV file
+#' (the result of \link{annotate_plates}).
+#' @param rotate A rough angle in degrees clockwise to rotate each plate. The
+#' rotation angle will be further calibrated after applying this rotation.
+#' Defaults to \code{90}.
+#' @param range Range to explore (in degrees) when calibrating rotation angle.
+#' Defaults to \code{6}.
+#' @param step Increment (in degrees) to step when calibrating rotation angle.
+#' Defaults to \code{0.2}.
+#' @param thresh Fraction of foreground pixels needed to identify plate
+#' boundaries when rough cropping. Defaults to \code{0.03}.
+#' @param invert Should the image be inverted? Defaults to \code{TRUE}.
+#' Recommended \code{TRUE} if colonies are darker than the plate.
+#' @param display Should cropped images be displayed for review?
+#' Defaults to \code{TRUE}.
+#' @param overwrite Should an existing screenmill crop calibration file be
+#' overwritten? Defaults to \code{FALSE} to protect manually adjusted values.
+#'
+#' @details
+#' Crop calibration procedes through the following 3 steps:
+#'
+#' \enumerate{
+#'   \item Rough crop
+#'   \item Rotate
+#'   \item Fine crop
+#' }
+#'
+#' Rough cropping relies on high contrast between plates. If
+#' \code{invert = TRUE} plates should be light and the region between plates
+#' should be dark, and vice versa if \code{invert = FALSE}.
+#'
+#' Rotation first applies the \code{rotate} argument, then iterates through
+#' a range of degrees specified by the \code{range} argument with a step
+#' specified by the \code{step} argument. The image is first thresholded to identify
+#' objects (i.e. colonies) and the objects are expanded to get a rough shape of
+#' their location on the plate. The final rotation angle is chosen
+#' by minimizing the variance of rowwise sums for the range of rotation angles
+#' explored, which effectively aligns a rectangular shape with the axes.
+#'
+#' Fine cropping finds the nearest object edge (problematic for plates without
+#' any growth on the intended grid edges).
+#'
+#' @return Writes a file called \code{screenmill-plate-annotations.csv} to the image
+#' directory and returns a path to this file.
+#'
 #' @export
 
-crop <- function(files, rotate = 90, range = 6, incr = 0.2, thresh = 0.03,
-                 invert = TRUE, rough_pad = c(0, 0, 0, 0),
-                 fine_pad = c(4, 4, 4, 4), display = TRUE) {
+calibrate_crop <- function(annotations,
+                           rotate = 90, range = 6, step = 0.2,
+                           thresh = 0.03, invert = TRUE,
+                           rough_pad = c(0, 0, 0, 0), fine_pad = c(5, 5, 5, 5),
+                           display = TRUE, overwrite = FALSE) {
 
-  time <- Sys.time()
-  # Save graphical parameters to reset on exit (for bug in EBImage - soon to be fixed)
+  # ---- Setup ----
+  # Save graphical parameters to reset on exit (bug fixed in EBImage >= 4.13.7)
   old <- par(no.readonly = TRUE)
   on.exit(par(old))
+
+  # Determine working directory
+  dir <- dirname(annotations)
+  output_path <- paste0(dir, '/screenmill-crop-calibration.csv')
+
+  if (file.exists(output_path) && !overwrite) {
+    message('Cropping has already been calibrated. Set "overwrite = TRUE" to ',
+            'overwrite existing crop calibration.')
+    return(output_path)
+  }
+
+  # Read annotation data
+  if (!file.exists(annotations)) {
+    stop(paste('Annotations not found. Please annotate plates before cropping.',
+               'See ?annotate_plates for more help.'))
+  }
+  anno <-
+    read_csv(annotations) %>%
+    mutate(path = gsub('^./', paste0(dir, '/'), path))
+  templates <- with(anno, unique(path[which(crop_template == name)]))
+
+  # Record start time
+  time <- Sys.time()
 
   # ---- initialize targets ----
   rough_crops <- NULL
   fine_crops  <- NULL
 
-  for (file in files) {
+  for (file in templates) {
 
     # ---- Rough Crop ----
     # Read as greyscale image
     message('Reading ', basename(file), ' ...')
     img <- EBImage::readImage(file)
-    if (EBImage::colorMode(img)) img <- EBImage::channel(img, 'luminance')
+    if (EBImage::colorMode(img)) {
+      img <- EBImage::channel(img, 'luminance')
+    }
 
     # Find crop coordinates
     message('Rough cropping ', basename(file), ' ...')
@@ -40,11 +117,27 @@ crop <- function(files, rotate = 90, range = 6, incr = 0.2, thresh = 0.03,
       with(rough, text(x_plate, y_plate, position, col = 'red'))
     }
 
-    # Crop plate images
-    plates <- with(rough, lapply(position, function(p) {
+    # Error for too many annotated positions
+    positions <- filter(anno, path == file)$position
+    if (nrow(rough) < length(positions)) {
+      stop(
+        nrow(rough), 'plate positions were detected, but there were ',
+        max(positions), ' annotated positions. See ?annotate_plates for more help.')
+    }
+
+    # Crop plate images for all annotated positions
+
+    plates <- lapply(positions, function(p) {
       rough_crop_prog$tick()$print()
-      img[ left[p]:right[p], top[p]:bot[p] ]
-    }))
+      with(rough, img[ left[p]:right[p], top[p]:bot[p] ])
+    })
+
+    # Message for unannotated positions
+    if (nrow(rough) > length(positions)) {
+      message(
+        nrow(rough), 'positions were detected, but only annotated positions (',
+        paste(positions, collapse = ', '), ') were used.')
+    }
 
     # ---- Rotate/Fine Crop ----
     message('Fine cropping ', basename(file), ' ...')
@@ -55,7 +148,7 @@ crop <- function(files, rotate = 90, range = 6, incr = 0.2, thresh = 0.03,
       plate <- plates[[position]]
 
       # Find crop and rotation coordinates
-      fine <- fine_crop(plate, rotate, range, incr, fine_pad, invert)
+      fine <- fine_crop(plate, rotate, range, step, fine_pad, invert)
       fine_crop_prog$tick()$print()
 
       # Add to fine crops target
@@ -76,10 +169,12 @@ crop <- function(files, rotate = 90, range = 6, incr = 0.2, thresh = 0.03,
     }
   }
 
-  message(length(files), ' image(s) cropped in ', format(round(Sys.time() - time, 2)))
+  message('Cropping calibrated for ', length(templates), ' image(s) in ',
+          format(round(Sys.time() - time, 2)))
   # Return
   left_join(rough_crops, fine_crops, by = c('file', 'position')) %>%
-    select_(~file, ~position, ~everything())
+    select_(~file, ~position, ~everything()) %>%
+    write_csv(output_path)
 }
 
 
@@ -166,7 +261,7 @@ rough_crop <- function(img, thresh, invert, pad) {
 #'
 #' @param img A rough cropped plate image
 #' @param rough Rough angle in degrees clockwise with which to rotate plate
-#' @param incr Degree increment used in fine rotation
+#' @param step Degree increment used in fine rotation
 #'
 #' @details The implementation of this function was adapted from Gitter
 #' (see \href{http://www.ncbi.nlm.nih.gov/pubmed/24474170}{PMID:24474170})
@@ -175,14 +270,14 @@ rough_crop <- function(img, thresh, invert, pad) {
 #'
 #' @export
 
-grid_angle <- function(img, rough, range, incr) {
+grid_angle <- function(img, rough, range, step) {
 
   # Apply rough rotate
   rotated  <- rotate(img, rough)
   small <- fillHull(dilate(resize(rotated, h = 200), makeBrush(11)))
 
   # Determine rough rotation angle
-  range <- seq(-range / 2, range / 2, by = incr)
+  range <- seq(-range / 2, range / 2, by = step)
   variance <- sapply(range, function(angle) {
     #sum(rowSums(rotate(small, angle))^2)
     var(rowSums(rotate(small, angle)))
@@ -207,7 +302,7 @@ grid_angle <- function(img, rough, range, incr) {
 #' @param invert Invert
 #' @param pad Pad
 
-fine_crop <- function(img, rotate, range, incr, pad, invert) {
+fine_crop <- function(img, rotate, range, step, pad, invert) {
 
   # Invert plate image, blur, threshold and label objects
   if (invert) neg <- max(img) - img else neg <- img
@@ -229,7 +324,7 @@ fine_crop <- function(img, rotate, range, incr, pad, invert) {
   clean <- EBImage::rmObjects(obj, crap$obj) > 0
 
   # Determine rotation angle and rotate plate
-  angle <- grid_angle(clean, rotate, range = range, incr = incr)
+  angle <- grid_angle(clean, rotate, range = range, step = step)
   rotated <- rotate(clean, angle)
 
   # Split objects that cross rough grid lines

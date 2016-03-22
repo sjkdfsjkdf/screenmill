@@ -4,14 +4,14 @@
 \alias{grid_angle}
 \title{Determine plate rotation angle}
 \usage{
-grid_angle(img, rough, range, incr)
+grid_angle(img, rough, range, step)
 }
 \arguments{
 \item{img}{A rough cropped plate image}
 
 \item{rough}{Rough angle in degrees clockwise with which to rotate plate}
 
-\item{incr}{Degree increment used in fine rotation}
+\item{step}{Degree increment used in fine rotation}
 }
 \description{
 Uses a Radon transform to determine the angle that aligns the colony grid
