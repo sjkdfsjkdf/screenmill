@@ -4,7 +4,7 @@
 #' This function calibrates plate cropping and rotation parameters for an image
 #' with an arbritrarily sized grid of plates.
 #'
-#' @param annotations Path to a screenmill plate annotations CSV file
+#' @param plates Path to a screenmill plates annotation CSV file
 #' (the result of \link{annotate_plates}).
 #' @param rotate A rough angle in degrees clockwise to rotate each plate. The
 #' rotation angle will be further calibrated after applying this rotation.
@@ -51,7 +51,7 @@
 #'
 #' @export
 
-calibrate_crop <- function(annotations,
+calibrate_crop <- function(plates,
                            rotate = 90, range = 6, step = 0.2,
                            thresh = 0.03, invert = TRUE,
                            rough_pad = c(0, 0, 0, 0), fine_pad = c(5, 5, 5, 5),
@@ -63,20 +63,29 @@ calibrate_crop <- function(annotations,
   on.exit(par(old))
 
   # Determine working directory
-  dir <- dirname(annotations)
-  output_path <- paste0(dir, '/screenmill-crop-calibration.csv')
+  dir <- dirname(plates)
+  result <- read_csv(plates)
 
-  if (file.exists(output_path) && !overwrite) {
+  expected_names <-
+    c('date', 'name', 'path', 'crop_template', 'group', 'position',
+      'strain_collection_id', 'plate,query_id', 'treatment_id', 'media_id',
+      'temperature', 'time_series', 'timepoint', 'start', 'end', 'owner', 'email')
+  expected_crop_names <-
+    c('plate_row', 'plate_col', 'x_plate', 'y_plate', 'left', 'right', 'top',
+      'bot', 'rotate', 'fine_left', 'fine_right', 'fine_top', 'fine_bot')
+
+  if (!(result %>% has_name(expected_names) %>% all)) {
+    stop('Missing the following columns in ', basename(plates), ':\n',
+         paste(expected_names[!has_name(result)], collapse = ', '))
+  }
+
+  if (result %>% has_name(expected_crop_names) %>% all && !overwrite) {
     message('Cropping has already been calibrated. Set "overwrite = TRUE" to ',
             'overwrite existing crop calibration.')
-    return(output_path)
+    return(plates)
   }
 
   # Read annotation data
-  if (!file.exists(annotations)) {
-    stop(paste('Annotations not found. Please annotate plates before cropping.',
-               'See ?annotate_plates for more help.'))
-  }
   anno <-
     read_csv(annotations) %>%
     mutate(path = gsub('^./', paste0(dir, '/'), path))
@@ -174,7 +183,7 @@ calibrate_crop <- function(annotations,
   # Return
   left_join(rough_crops, fine_crops, by = c('file', 'position')) %>%
     select_(~file, ~position, ~everything()) %>%
-    write_csv(output_path)
+    write_csv(plates)
 }
 
 
