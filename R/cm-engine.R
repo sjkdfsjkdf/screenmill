@@ -19,8 +19,8 @@
 #' Recommended \code{TRUE} if colonies are darker than the plate.
 #' @param display Should cropped images be displayed for review?
 #' Defaults to \code{TRUE}.
-#' @param overwrite Should an existing screenmill crop calibration file be
-#' overwritten? Defaults to \code{FALSE} to protect manually adjusted values.
+#' @param overwrite Should an existing screenmill plate annotation file be
+#' overwritten? Defaults to \code{FALSE}.
 #'
 #' @details
 #' Crop calibration procedes through the following 3 steps:

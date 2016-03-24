@@ -8,7 +8,7 @@ annotate_plates(dir = NULL, queries = getOption("screenmill.queries"),
   strain_collections = getOption("screenmill.strain_collections"),
   media = getOption("screenmill.media"),
   treatments = getOption("screenmill.treatments"), temperatures = c(23, 27,
-  30, 33, 37))
+  30, 33, 37), overwrite = FALSE)
 }
 \arguments{
 \item{dir}{The directory containing images to annotate. If \code{NULL} the
@@ -28,6 +28,9 @@ collections. Uses \code{getOption('screenmill.strain_collections')}
 \code{getOption('screenmill.treatments')} by default (see Details).}
 
 \item{temperatures}{A vector of recommended temperatures.}
+
+\item{overwrite}{Should an existing screenmill plate annotation file be
+overwritten? Defaults to \code{FALSE}.}
 }
 \description{
 This function launches a Shiny gadget that allows a user to record information
