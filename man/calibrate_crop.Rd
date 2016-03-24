@@ -4,12 +4,12 @@
 \alias{calibrate_crop}
 \title{Calibrate cropping and rotation parameters}
 \usage{
-calibrate_crop(plates, rotate = 90, range = 6, step = 0.2,
+calibrate_crop(screenmill_plates, rotate = 90, range = 6, step = 0.2,
   thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
   fine_pad = c(5, 5, 5, 5), display = TRUE, overwrite = FALSE)
 }
 \arguments{
-\item{plates}{Path to a screenmill plates annotation CSV file
+\item{screenmill_plates}{Path to a screenmill plates annotation CSV file
 (the result of \link{annotate_plates}).}
 
 \item{rotate}{A rough angle in degrees clockwise to rotate each plate. The

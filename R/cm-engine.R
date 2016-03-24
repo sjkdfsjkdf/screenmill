@@ -4,7 +4,7 @@
 #' This function calibrates plate cropping and rotation parameters for an image
 #' with an arbritrarily sized grid of plates.
 #'
-#' @param plates Path to a screenmill plates annotation CSV file
+#' @param screenmill_plates Path to a screenmill plates annotation CSV file
 #' (the result of \link{annotate_plates}).
 #' @param rotate A rough angle in degrees clockwise to rotate each plate. The
 #' rotation angle will be further calibrated after applying this rotation.
@@ -51,45 +51,46 @@
 #'
 #' @export
 
-calibrate_crop <- function(plates,
+calibrate_crop <- function(screenmill_plates,
                            rotate = 90, range = 6, step = 0.2,
                            thresh = 0.03, invert = TRUE,
                            rough_pad = c(0, 0, 0, 0), fine_pad = c(5, 5, 5, 5),
                            display = TRUE, overwrite = FALSE) {
 
   # ---- Setup ----
-  # Save graphical parameters to reset on exit (bug fixed in EBImage >= 4.13.7)
-  old <- par(no.readonly = TRUE)
-  on.exit(par(old))
+  if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }  # only necessary for bug in EBImage < 4.13.7
 
   # Determine working directory
-  dir <- dirname(plates)
-  result <- read_csv(plates)
+  dir <- dirname(screenmill_plates)
+  current <- read_csv(screenmill_plates)
 
+  # Validate input
+  stopifnot(
+    is.number(rotate), is.number(range), is.number(step), is.number(thresh),
+    is.flag(invert), is.flag(display), is.flag(overwrite),
+    is.numeric(rough_pad) && length(rough_pad) == 4,
+    is.numeric(fine_pad)  && length(fine_pad)  == 4
+  )
   expected_names <-
-    c('date', 'name', 'path', 'crop_template', 'group', 'position',
-      'strain_collection_id', 'plate,query_id', 'treatment_id', 'media_id',
+    c('date', 'file', 'crop_template', 'group', 'position',
+      'strain_collection_id', 'plate', 'query_id', 'treatment_id', 'media_id',
       'temperature', 'time_series', 'timepoint', 'start', 'end', 'owner', 'email')
   expected_crop_names <-
     c('plate_row', 'plate_col', 'x_plate', 'y_plate', 'left', 'right', 'top',
       'bot', 'rotate', 'fine_left', 'fine_right', 'fine_top', 'fine_bot')
 
-  if (!(result %>% has_name(expected_names) %>% all)) {
-    stop('Missing the following columns in ', basename(plates), ':\n',
-         paste(expected_names[!has_name(result)], collapse = ', '))
+  if (!(current %>% has_name(expected_names) %>% all)) {
+    stop('Missing the following columns in ', basename(screenmill_plates), ':\n',
+         paste(expected_names[!has_name(current, expected_names)], collapse = ', '))
   }
 
-  if (result %>% has_name(expected_crop_names) %>% all && !overwrite) {
-    message('Cropping has already been calibrated. Set "overwrite = TRUE" to ',
-            'overwrite existing crop calibration.')
-    return(plates)
+  if (current %>% has_name(expected_crop_names) %>% all && !overwrite) {
+    message('Cropping has already been calibrated. Set "overwrite = TRUE" to re-calibrate.')
+    return(screenmill_plates)
   }
 
-  # Read annotation data
-  anno <-
-    read_csv(annotations) %>%
-    mutate(path = gsub('^./', paste0(dir, '/'), path))
-  templates <- with(anno, unique(path[which(crop_template == name)]))
+  # Get crop templates
+  templates <- paste(dir, unique(current$crop_template), sep = '/')
 
   # Record start time
   time <- Sys.time()
@@ -114,7 +115,7 @@ calibrate_crop <- function(plates,
     rough_crop_prog <- progress_estimated(nrow(rough), 3)
 
     # Add to rough crops target
-    rough_crops <- rough %>% mutate(file = file) %>% bind_rows(rough_crops)
+    rough_crops <- rough %>% mutate(file = basename(file)) %>% bind_rows(rough_crops)
 
     # Display rough cropped images in browser if desired
     if (display) {
@@ -127,7 +128,7 @@ calibrate_crop <- function(plates,
     }
 
     # Error for too many annotated positions
-    positions <- filter(anno, path == file)$position
+    positions <- current$position[which(current$file == basename(file))]
     if (nrow(rough) < length(positions)) {
       stop(
         nrow(rough), 'plate positions were detected, but there were ',
@@ -163,7 +164,7 @@ calibrate_crop <- function(plates,
       # Add to fine crops target
       fine_crops <-
         fine %>%
-        mutate(file = file, position = position) %>%
+        mutate(file = basename(file), position = position) %>%
         bind_rows(fine_crops)
 
       # Display fine crop if desired
@@ -181,9 +182,12 @@ calibrate_crop <- function(plates,
   message('Cropping calibrated for ', length(templates), ' image(s) in ',
           format(round(Sys.time() - time, 2)))
   # Return
-  left_join(rough_crops, fine_crops, by = c('file', 'position')) %>%
-    select_(~file, ~position, ~everything()) %>%
-    write_csv(plates)
+  current %>%
+    select_(~one_of(expected_names)) %>%
+    left_join(rough_crops, by = c('crop_template' = 'file', 'position')) %>%
+    left_join(fine_crops,  by = c('crop_template' = 'file', 'position')) %>%
+    select_(~date, ~file, ~position, ~everything()) %>%
+    write_csv(screenmill_plates)
 }
 
 
