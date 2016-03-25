@@ -15,6 +15,8 @@
 #' @param treatments A vector or dataframe of available treatments. Uses
 #' \code{getOption('screenmill.treatments')} by default (see Details).
 #' @param temperatures A vector of recommended temperatures.
+#' @param overwrite Should an existing screenmill plate annotation file be
+#' overwritten? Defaults to \code{FALSE}.
 #'
 #' @details This application is provided to make annotation of plates in
 #' colony growth experiments easier and safer. It will try to warn, or prevent
@@ -27,7 +29,7 @@
 #'
 #' To quit without saving, just press "Cancel".
 #'
-#' @importFrom readr write_csv read_csv
+#' @importFrom readr write_csv read_csv cols_only
 #' @export
 
 annotate_plates <- function(dir = NULL,
@@ -35,45 +37,59 @@ annotate_plates <- function(dir = NULL,
                             strain_collections = getOption('screenmill.strain_collections'),
                             media = getOption('screenmill.media'),
                             treatments = getOption('screenmill.treatments'),
-                            temperatures = c(23, 27, 30, 33, 37)) {
+                            temperatures = c(23, 27, 30, 33, 37),
+                            overwrite = FALSE) {
   # ---- Setup ----
   if (is.null(dir)) {
     if (requireNamespace('tcltk', quietly = TRUE)) {
       dir <- tcltk::tk_choose.dir(caption = 'Where are the images you wish to process?')
     } else {
       message('Choose a file in the directory of images you wish to process.')
-      dir <- file.choose()
+      dir <- dirname(file.choose())
     }
   }
   home <- setwd(dir)
   on.exit(setwd(home))
+  output_path <- 'screenmill-plates.csv'
 
-  # Get information about images - path, name, standard, time_series, time
+  # Get information about images - path, file, standard, time_series, time
   images <- image_data()
 
   # Initialize variables
   vars <- list()
-  if (!file.exists('screenmill-plate-annotations.csv')) {
+  if (!file.exists(output_path)) {
     # Set default variables
     vars$user  <- NULL
     vars$email <- NULL
     vars$ts    <- 'Yes'
 
-    # Table 1: Image groups keys | name, time
-    vars$tbl1 <- read_csv('name,time,group\n', col_types = 'cci')
+    # Table 1: Image groups keys | file, time
+    vars$tbl1 <- read_csv('file,time,group\n', col_types = 'cci')
 
     # Table 2: Group annotation keys | group, crop_template
-    vars$tbl2  <- read_csv('group,crop_template,start,positions,temperature\n', col_types = 'iccin')
+    vars$tbl2 <- read_csv('group,crop_template,start,positions,temperature\n', col_types = 'iccin')
 
     # Table 3: Plate annotation keys | group, crop_template, position
-    vars$tbl3  <- read_csv('group,crop_template,position,strain_collection_id,plate,query_id,treatment_id,media_id\n', col_types = 'iciciccc')
+    vars$tbl3 <- read_csv('group,crop_template,position,strain_collection_id,plate,query_id,treatment_id,media_id\n', col_types = 'iciciccc')
   } else {
     # Restore variables
     vars$tbl <-
-      read_csv('screenmill-plate-annotations.csv', col_types = 'cccciicicccncicccc') %>%
-      group_by(name, group) %>%
+      output_path %>%
+      read_csv(col_types = cols_only( # columns to keep and there type
+        date = 'c', file = 'c', position = 'i', crop_template = 'c', group = 'i',
+        strain_collection_id = 'c', plate = 'i', query_id = 'c', treatment_id = 'c',
+        media_id = 'c', temperature = 'n', time_series = 'c', timepoint = 'i',
+        start = 'c', end = 'c', owner = 'c', email = 'c')
+      ) %>%
+      group_by(file, group) %>%
       mutate(positions = n(), time = end) %>%
       ungroup
+
+    # If not overwrite and everything has been annotated then exit
+    if (!overwrite && all(complete.cases(vars$tbl))) {
+      message('Plates have already been annotated. Set "overwrite = TRUE" to re-annotate.')
+      return(paste(dir, output_path, sep = '/'))
+    }
 
     vars$user  <- vars$tbl$owner[1]
     vars$email <- vars$tbl$email[1]
@@ -81,16 +97,16 @@ annotate_plates <- function(dir = NULL,
 
     vars$tbl1 <-
       vars$tbl %>%
-      select(name, time, group) %>%
+      select(file, time, group) %>%
       distinct
 
-    # Check that there is only one timepoint for each name
-    verify_tbl1 <- count(vars$tbl1, name) %>% filter(n > 1)
+    # Check that there is only one timepoint for each file
+    verify_tbl1 <- count(vars$tbl1, file) %>% filter(n > 1)
     if (nrow(verify_tbl1) > 0) {
-      print(vars$tbl1[which(vars$tbl1$name %in% verify_tbl1$name), ])
+      print(vars$tbl1[which(vars$tbl1$file %in% verify_tbl1$file), ])
       stop(
         paste(
-          'Image names do not uniquely map to end time and group number. Please',
+          'Files do not uniquely map to end time and group number. Please',
           'fix these issues in the previously saved annotation data located at:\n',
           paste0(home, '/screenmill-plate-annotations.csv')
         )
@@ -148,7 +164,7 @@ annotate_plates <- function(dir = NULL,
     w_colle <- max(160, max(nchar(strain_collections$strain_collection_id)) * 10)
     w_media <- max(40,  max(nchar(media$media_id)) * 12)
     w_treat <- max(75,  max(nchar(treatments$treatment_id)) * 12)
-    w_image <- max(130,  max(nchar(images$name)) * 10)
+    w_image <- max(130,  max(nchar(images$file)) * 10)
     w_tbl3  <- c(45, w_image, 60, w_colle, 40, w_query, w_treat, w_media)
   } else {
     w_tbl3 <- NULL
@@ -184,18 +200,18 @@ annotate_plates <- function(dir = NULL,
     })
 
 
-    # Table 1: Image groups keys | name, time ---------------------------------
+    # Table 1: Image groups keys | file, time ---------------------------------
     tbl1 <- reactive({
       if (reset$tbl1) {
         vars$tbl1 <-
           images %>%
-          left_join(rename(vars$tbl1, old_group = group, old_time = time), by = 'name') %>%
+          left_join(rename(vars$tbl1, old_group = group, old_time = time), by = 'file') %>%
           mutate(
             group = switch(input$ts, Yes = time_series, No = standard),
             group = ifelse(is.na(old_group), group, old_group), # restore saved groups
             time  = ifelse(is.na(old_time), time, old_time)     # restore saved time
           ) %>%
-          select(name, time, group)
+          select(file, time, group)
         vars$tbl1
       } else {
         vars$tbl1 <- hot_to_r(input$tbl1) %>% filter(complete.cases(.))
@@ -206,7 +222,7 @@ annotate_plates <- function(dir = NULL,
     output$tbl1 <- renderRHandsontable({
       tbl1() %>%
         rhandsontable(height = min(c(23 * nrow(.) + 50, 300))) %>%
-        hot_col(c('name', 'time'), readOnly = T) %>%
+        hot_col(c('file', 'time'), readOnly = T) %>%
         hot_validate_numeric('group', allowInvalid = TRUE) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
@@ -220,7 +236,7 @@ annotate_plates <- function(dir = NULL,
           group_by(group) %>%
           mutate(
             Ptime = as.POSIXct(time),
-            crop_template = name[which.max(Ptime)],
+            crop_template = file[which.max(Ptime)],
             start = min(Ptime) %>% as.character
           ) %>%
           ungroup %>%
@@ -243,7 +259,7 @@ annotate_plates <- function(dir = NULL,
 
     output$tbl2 <- renderRHandsontable({
       tbl2() %>%
-        rhandsontable(height = 23 * nrow(.) + 50) %>%
+        rhandsontable(height = 23 * nrow(.) + 200) %>%
         hot_col(c('group', 'crop_template'), readOnly = T) %>%
         hot_col(
           'start',
@@ -257,7 +273,7 @@ annotate_plates <- function(dir = NULL,
              }'
         ) %>%
         hot_col('temperature', type = 'autocomplete', source = temperatures) %>%
-        hot_validate_numeric(c('positions', 'temperature'), allowInvalid = TRUE) %>%
+        hot_validate_numeric(c('positions', 'temperature')) %>%
         hot_table(highlightCol = TRUE, highlightRow = TRUE)
     })
 
@@ -282,11 +298,12 @@ annotate_plates <- function(dir = NULL,
 
     output$tbl3 <- renderRHandsontable({
       tbl3() %>%
-        rhandsontable(height = 23 * nrow(.) + 50) %>%
+        rhandsontable(height = 23 * nrow(.) + 200) %>%
+        hot_validate_numeric('plate') %>%
         hot_col(c('group', 'crop_template', 'position'), readOnly = T) %>%
         hot_col('query_id', type = 'autocomplete', source = queries$query_id) %>%
         hot_col('strain_collection_id', type = 'autocomplete', source = strain_collections$strain_collection_id) %>%
-        hot_validate_numeric('plate', allowInvalid = TRUE) %>%
+
         hot_col('treatment_id', type = 'autocomplete', source = treatments$treatment_id) %>%
         hot_col('media_id', type = 'autocomplete', source = media$media_id) %>%
         hot_cols(colWidths = w_tbl3) %>%
@@ -302,29 +319,30 @@ annotate_plates <- function(dir = NULL,
 
     # On Click Save -----------------------------------------------------------
     observeEvent(input$save, {
-      annotation_path <-
-        select(images, name, path) %>%
-        left_join(tbl1(), by = 'name') %>%
+      images %>%
+        select(file) %>%
+        left_join(tbl1(), by = 'file') %>%
         left_join(tbl2(), by = 'group') %>%
         left_join(tbl3(), by = c('group', 'crop_template')) %>%
+        mutate_each(funs(ifelse(. == '', NA, .))) %>% # replace empty string with NA
         group_by(group) %>%
         mutate(Ptime = as.POSIXct(time)) %>%
         arrange(Ptime) %>%
         mutate(
           date = as.Date(start),
           timepoint = 1:n(),
-          owner = (input$user),
-          email = (input$email),
+          owner = ifelse(is.null(input$user) || (input$user) == '', NA, (input$user)),
+          email = ifelse(is.null(input$email) || (input$user) == '', NA, (input$email)),
           time_series = (input$ts)
         ) %>%
         select(
-          date, name, path, crop_template, group, position,
-          strain_collection_id, plate, query_id, treatment_id, media_id,
-          temperature, time_series, timepoint, start, end = time, owner, email
+          date, file, crop_template, group, position, strain_collection_id,
+          plate, query_id, treatment_id, media_id, temperature, time_series,
+          timepoint, start, end = time, owner, email
         ) %>%
-        write_csv('screenmill-plate-annotations.csv')
+        write_csv(output_path)
 
-      stopApp(annotation_path)
+      stopApp(paste(dir, output_path, sep = '/'))
     })
   }
 
@@ -411,6 +429,10 @@ annotate_plates <- function(dir = NULL,
         rHandsontableOutput('tbl3'),
         # Lookup tables
         h2('Lookup tables'),
+        h3(style = 'max-width: 800px', tags$small(
+          'The following tables are provided for convenience, if all fields have
+          been filled in the above tables, you may press save to exit this
+          application:')),
         h2(tags$small('Strain collections')),
         dataTableOutput('strain_collections'),
         h2(tags$small('Queries')),
@@ -438,7 +460,7 @@ image_data <- function(dir = '.', ext =  '\\.tiff?$|\\.jpe?g$|\\.png$') {
 
   data_frame(
     path  = paths,
-    name  = gsub(ext, '', basename(path)),
+    file  = basename(path),
     time  = file.info(path)$mtime
   ) %>%
   arrange(desc(time)) %>%
