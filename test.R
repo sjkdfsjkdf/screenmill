@@ -1,14 +1,11 @@
 library(screenmill)
-library(EBImage)
 library(dplyr)
-options("EBImage.display" = 'raster')
 
-files <- '20160216-00012.tif'
-
-crop(files)
-
-
-
+# Current pipeline
+path <-
+  'test-scans' %>%
+  annotate_plates %>%
+  calibrate_crop
 
 ###-------- This was in Fine crop, it splits the grid to identify and parse objects -------------
 rotated[cols1, ] <- 0
