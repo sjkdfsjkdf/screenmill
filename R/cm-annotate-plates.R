@@ -29,7 +29,7 @@
 #'
 #' To quit without saving, just press "Cancel".
 #'
-#' @importFrom readr write_csv read_csv
+#' @importFrom readr write_csv read_csv cols_only
 #' @export
 
 annotate_plates <- function(dir = NULL,
@@ -74,13 +74,22 @@ annotate_plates <- function(dir = NULL,
   } else {
     # Restore variables
     vars$tbl <-
-      read_csv(output_path, col_types = 'ccciicicccncicccc') %>%
+      output_path %>%
+      read_csv(col_types = cols_only( # columns to keep and there type
+        date = 'c', file = 'c', position = 'i', crop_template = 'c', group = 'i',
+        strain_collection_id = 'c', plate = 'i', query_id = 'c', treatment_id = 'c',
+        media_id = 'c', temperature = 'n', time_series = 'c', timepoint = 'i',
+        start = 'c', end = 'c', owner = 'c', email = 'c')
+      ) %>%
       group_by(file, group) %>%
       mutate(positions = n(), time = end) %>%
       ungroup
 
     # If not overwrite and everything has been annotated then exit
-    if (!overwrite && all(complete.cases(vars$tbl))) return(output_path)
+    if (!overwrite && all(complete.cases(vars$tbl))) {
+      message('Plates have already been annotated. Set "overwrite = TRUE" to re-annotate.')
+      return(paste(dir, output_path, sep = '/'))
+    }
 
     vars$user  <- vars$tbl$owner[1]
     vars$email <- vars$tbl$email[1]
@@ -333,7 +342,7 @@ annotate_plates <- function(dir = NULL,
         ) %>%
         write_csv(output_path)
 
-      stopApp(output_path)
+      stopApp(paste(dir, output_path, sep = '/'))
     })
   }
 
