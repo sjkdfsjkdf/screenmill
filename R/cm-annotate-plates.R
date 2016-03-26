@@ -325,16 +325,14 @@ annotate_plates <- function(dir = NULL,
         left_join(tbl2(), by = 'group') %>%
         left_join(tbl3(), by = c('group', 'crop_template')) %>%
         mutate_each(funs(ifelse(. == '', NA, .))) %>% # replace empty string with NA
-        group_by(group) %>%
-        mutate(Ptime = as.POSIXct(time)) %>%
-        arrange(Ptime) %>%
         mutate(
           date = as.Date(start),
-          timepoint = 1:n(),
           owner = ifelse(is.null(input$user) || (input$user) == '', NA, (input$user)),
           email = ifelse(is.null(input$email) || (input$user) == '', NA, (input$email)),
           time_series = (input$ts)
         ) %>%
+        group_by(date, group, position) %>%
+        mutate(timepoint = order(as.POSIXct(time))) %>%
         select(
           date, file, crop_template, group, position, strain_collection_id,
           plate, query_id, treatment_id, media_id, temperature, time_series,
