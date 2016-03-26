@@ -329,10 +329,10 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
   crap <-
     feat %>%
     filter_(~
-              area  > mean(area) + (3 * mad(area)) |
-              area  < 10 |
-              eccen > 0.8 |
-              ndist > mean(ndist) + (3 * mad(ndist))
+      area  > mean(area) + (3 * mad(area)) |
+      area  < 10 |
+      eccen > 0.8 |
+      ndist > mean(ndist) + (3 * mad(ndist))
     )
   clean <- EBImage::rmObjects(obj, crap$obj) > 0
 
@@ -341,8 +341,8 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
   rotated <- rotate(clean, angle)
 
   # Split objects that cross rough grid lines
-  cols <- grid_breaks(rotated, 'col')
-  rows <- grid_breaks(rotated, 'row')
+  cols <- grid_breaks(rotated, 'col', thresh = 0.1)
+  rows <- grid_breaks(rotated, 'row', thresh = 0.1)
 
   # Construct fine crop data
   data_frame(
