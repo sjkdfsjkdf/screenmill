@@ -4,7 +4,7 @@
 #' This function calibrates plate cropping and rotation parameters for an image
 #' with an arbritrarily sized grid of plates.
 #'
-#' @param screenmill_plates Path to a screenmill plates annotation CSV file
+#' @param annotations Path to a screenmill plates annotation CSV file
 #' (the result of \link{annotate_plates}).
 #' @param rotate A rough angle in degrees clockwise to rotate each plate. The
 #' rotation angle will be further calibrated after applying this rotation.
@@ -51,7 +51,7 @@
 #'
 #' @export
 
-calibrate_crop <- function(screenmill_plates,
+calibrate_crop <- function(annotations,
                            rotate = 90, range = 6, step = 0.2,
                            thresh = 0.03, invert = TRUE,
                            rough_pad = c(0, 0, 0, 0), fine_pad = c(5, 5, 5, 5),
@@ -61,8 +61,8 @@ calibrate_crop <- function(screenmill_plates,
   if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }  # only necessary for bug in EBImage < 4.13.7
 
   # Determine working directory
-  dir <- dirname(screenmill_plates)
-  current <- read_csv(screenmill_plates)
+  dir <- dirname(annotations)
+  current <- screenmill_plates(annotations)
 
   # Validate input
   stopifnot(
@@ -71,22 +71,10 @@ calibrate_crop <- function(screenmill_plates,
     is.numeric(rough_pad) && length(rough_pad) == 4,
     is.numeric(fine_pad)  && length(fine_pad)  == 4
   )
-  expected_names <-
-    c('date', 'file', 'crop_template', 'group', 'position',
-      'strain_collection_id', 'plate', 'query_id', 'treatment_id', 'media_id',
-      'temperature', 'time_series', 'timepoint', 'start', 'end', 'owner', 'email')
-  expected_crop_names <-
-    c('plate_row', 'plate_col', 'x_plate', 'y_plate', 'left', 'right', 'top',
-      'bot', 'rotate', 'fine_left', 'fine_right', 'fine_top', 'fine_bot')
 
-  if (!(current %>% has_name(expected_names) %>% all)) {
-    stop('Missing the following columns in ', basename(screenmill_plates), ':\n',
-         paste(expected_names[!has_name(current, expected_names)], collapse = ', '))
-  }
-
-  if (current %>% has_name(expected_crop_names) %>% all && !overwrite) {
+  if (attr(current, 'calibrated') && !overwrite) {
     message('Cropping has already been calibrated. Set "overwrite = TRUE" to re-calibrate.')
-    return(screenmill_plates)
+    return(annotations)
   }
 
   # Get crop templates
@@ -183,11 +171,11 @@ calibrate_crop <- function(screenmill_plates,
           format(round(Sys.time() - time, 2)))
   # Return
   current %>%
-    select_(~one_of(expected_names)) %>%
+    select_(~one_of(attr(., 'annotations'))) %>%
     left_join(rough_crops, by = c('crop_template' = 'file', 'position')) %>%
     left_join(fine_crops,  by = c('crop_template' = 'file', 'position')) %>%
     select_(~date, ~file, ~position, ~everything()) %>%
-    write_csv(screenmill_plates)
+    write_csv(annotations)
 }
 
 
@@ -516,4 +504,38 @@ find_valleys <- function(y, thr, invert = F) {
     })
   ) %>%
     mutate(n = 1:n())
+}
+
+# Read screenmill-plates.csv
+screenmill_plates <- function(path) {
+  df <-
+    path %>%
+    read_csv(
+      col_types =
+        cols(  # Enforce types for manually entered plate annotations
+          date = 'c', file = 'c', crop_template = 'c', group = 'i', position = 'i',
+          strain_collection_id = 'c', plate = 'i', query_id = 'c', treatment_id = 'c',
+          media_id = 'c', temperature = 'n', time_series = 'c', timepoint = 'i',
+          start = 'c', end = 'c', owner = 'c', email = 'c'
+        )
+    )
+
+  # Record whether plates have been calibrated/cropped based on available cols
+  attr(df, 'cropped') <-
+    df %>%
+    has_name('img_crop')
+  attr(df, 'calibrated') <-
+    df %>%
+    has_name(
+      c('plate_row', 'plate_col', 'x_plate', 'y_plate', 'left', 'right',
+        'top', 'bot', 'rotate', 'fine_left', 'fine_right', 'fine_top',
+        'fine_bot')
+    ) %>%
+    all
+  attr(df, 'annotations') <-
+    c('date', 'file', 'crop_template', 'group', 'position', 'strain_collection_id',
+      'plate', 'query_id', 'treatment_id', 'media_id', 'temperature',
+      'time_series', 'timepoint', 'start', 'end', 'owner', 'email')
+
+  return(df)
 }
