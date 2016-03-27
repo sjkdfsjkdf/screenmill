@@ -11,7 +11,7 @@ annotate_plates(dir = NULL, queries = getOption("screenmill.queries"),
   30, 33, 37), overwrite = FALSE)
 }
 \arguments{
-\item{dir}{The directory containing images to annotate. If \code{NULL} the
+\item{dir}{Directory of images to process. If \code{NULL} the
 user will be prompted to choose a directory.}
 
 \item{queries}{A vector, or dataframe of available queries. Uses

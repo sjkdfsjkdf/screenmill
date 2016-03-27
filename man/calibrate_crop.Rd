@@ -4,13 +4,12 @@
 \alias{calibrate_crop}
 \title{Calibrate cropping and rotation parameters}
 \usage{
-calibrate_crop(annotations, rotate = 90, range = 6, step = 0.2,
-  thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
-  fine_pad = c(5, 5, 5, 5), display = TRUE, overwrite = FALSE)
+calibrate_crop(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
+  invert = TRUE, rough_pad = c(0, 0, 0, 0), fine_pad = c(5, 5, 5, 5),
+  display = TRUE, overwrite = FALSE)
 }
 \arguments{
-\item{annotations}{Path to a screenmill plates annotation CSV file
-(the result of \link{annotate_plates}).}
+\item{dir}{Directory of images to process.}
 
 \item{rotate}{A rough angle in degrees clockwise to rotate each plate. The
 rotation angle will be further calibrated after applying this rotation.
@@ -33,10 +32,6 @@ Defaults to \code{TRUE}.}
 
 \item{overwrite}{Should an existing screenmill plate annotation file be
 overwritten? Defaults to \code{FALSE}.}
-}
-\value{
-Writes a file called \code{screenmill-plate-annotations.csv} to the image
-directory and returns a path to this file.
 }
 \description{
 This function calibrates plate cropping and rotation parameters for an image

@@ -4,8 +4,7 @@
 #' This function calibrates plate cropping and rotation parameters for an image
 #' with an arbritrarily sized grid of plates.
 #'
-#' @param annotations Path to a screenmill plates annotation CSV file
-#' (the result of \link{annotate_plates}).
+#' @param dir Directory of images to process.
 #' @param rotate A rough angle in degrees clockwise to rotate each plate. The
 #' rotation angle will be further calibrated after applying this rotation.
 #' Defaults to \code{90}.
@@ -46,12 +45,9 @@
 #' Fine cropping finds the nearest object edge (problematic for plates without
 #' any growth on the intended grid edges).
 #'
-#' @return Writes a file called \code{screenmill-plate-annotations.csv} to the image
-#' directory and returns a path to this file.
-#'
 #' @export
 
-calibrate_crop <- function(annotations,
+calibrate_crop <- function(dir,
                            rotate = 90, range = 6, step = 0.2,
                            thresh = 0.03, invert = TRUE,
                            rough_pad = c(0, 0, 0, 0), fine_pad = c(5, 5, 5, 5),
@@ -60,21 +56,31 @@ calibrate_crop <- function(annotations,
   # ---- Setup ----
   if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }  # only necessary for bug in EBImage < 4.13.7
 
-  # Determine working directory
-  dir <- dirname(annotations)
-  current <- screenmill_plates(annotations)
-
   # Validate input
   stopifnot(
-    is.number(rotate), is.number(range), is.number(step), is.number(thresh),
-    is.flag(invert), is.flag(display), is.flag(overwrite),
+    is.string(dir), is.number(rotate), is.number(range), is.number(step),
+    is.number(thresh), is.flag(invert), is.flag(display), is.flag(overwrite),
     is.numeric(rough_pad) && length(rough_pad) == 4,
     is.numeric(fine_pad)  && length(fine_pad)  == 4
   )
 
+  # Determine working directory
+  dir <- gsub('/$', '', dir)
+  if (is.dir(dir)) {
+    path <- paste(dir, 'screenmill-plates.csv', sep = '/')
+  } else {
+    path <- dir
+  }
+  if (!file.exists(path)) {
+    stop('Could not find ', path, '. Please annotate plates before cropping.
+         See ?annotate_plates for more details.')
+  }
+
+  current <- screenmill_plates(path)
+
   if (attr(current, 'calibrated') && !overwrite) {
     message('Cropping has already been calibrated. Set "overwrite = TRUE" to re-calibrate.')
-    return(annotations)
+    return(invisible(dir))
   }
 
   # Get crop templates
@@ -169,13 +175,14 @@ calibrate_crop <- function(annotations,
 
   message('Cropping calibrated for ', length(templates), ' image(s) in ',
           format(round(Sys.time() - time, 2)))
-  # Return
+  # Write and return
   current %>%
     select_(~one_of(attr(., 'annotations'))) %>%
     left_join(rough_crops, by = c('crop_template' = 'file', 'position')) %>%
     left_join(fine_crops,  by = c('crop_template' = 'file', 'position')) %>%
     select_(~date, ~file, ~position, ~everything()) %>%
-    write_csv(annotations)
+    write_csv(path)
+  return(invisible(dir))
 }
 
 
@@ -508,6 +515,7 @@ find_valleys <- function(y, thr, invert = F) {
 
 # Read screenmill-plates.csv
 screenmill_plates <- function(path) {
+
   df <-
     path %>%
     read_csv(
@@ -519,6 +527,19 @@ screenmill_plates <- function(path) {
           start = 'c', end = 'c', owner = 'c', email = 'c'
         )
     )
+
+  # Validate data
+  counts <- df %>% select(file, end, group) %>% distinct %>% count(file) %>% filter(n > 1)
+  if (nrow(counts) > 0) {
+    print(df[which(df$file %in% counts$file), ])
+    stop(
+      paste(
+        'Files do not uniquely map to end time and group number. Please',
+        'fix these issues in the previously saved annotation data located at:\n',
+        path
+      )
+    )
+  }
 
   # Record whether plates have been calibrated/cropped based on available cols
   attr(df, 'cropped') <-

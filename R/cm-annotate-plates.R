@@ -3,7 +3,7 @@
 #' This function launches a Shiny gadget that allows a user to record information
 #' about plate images for arrayed colony growth experiments.
 #'
-#' @param dir The directory containing images to annotate. If \code{NULL} the
+#' @param dir Directory of images to process. If \code{NULL} the
 #' user will be prompted to choose a directory.
 #' @param queries A vector, or dataframe of available queries. Uses
 #' \code{getOption('screenmill.queries')} by default (see Details).
@@ -41,23 +41,18 @@ annotate_plates <- function(dir = NULL,
                             overwrite = FALSE) {
   # ---- Setup ----
   if (is.null(dir)) {
-    if (requireNamespace('tcltk', quietly = TRUE)) {
-      dir <- tcltk::tk_choose.dir(caption = 'Where are the images you wish to process?')
-    } else {
-      message('Choose a file in the directory of images you wish to process.')
-      dir <- dirname(file.choose())
-    }
+    message('Choose a file in the directory of images you wish to process.')
+    dir <- dirname(file.choose())
   }
-  home <- setwd(dir)
-  on.exit(setwd(home))
-  output_path <- 'screenmill-plates.csv'
+  dir <- gsub('/$', '', dir)
+  target <- paste(dir, 'screenmill-plates.csv', sep = '/')
 
   # Get information about images - path, file, standard, time_series, time
-  images <- image_data()
+  images <- image_data(dir)
 
   # Initialize variables
   vars <- list()
-  if (!file.exists(output_path)) {
+  if (!file.exists(target)) {
     # Set default variables
     vars$user  <- NULL
     vars$email <- NULL
@@ -74,13 +69,7 @@ annotate_plates <- function(dir = NULL,
   } else {
     # Restore variables
     vars$tbl <-
-      output_path %>%
-      read_csv(col_types = cols_only( # columns to keep and there type
-        date = 'c', file = 'c', position = 'i', crop_template = 'c', group = 'i',
-        strain_collection_id = 'c', plate = 'i', query_id = 'c', treatment_id = 'c',
-        media_id = 'c', temperature = 'n', time_series = 'c', timepoint = 'i',
-        start = 'c', end = 'c', owner = 'c', email = 'c')
-      ) %>%
+      screenmill_plates(target) %>%
       group_by(file, group) %>%
       mutate(positions = n(), time = end) %>%
       ungroup
@@ -88,38 +77,22 @@ annotate_plates <- function(dir = NULL,
     # If not overwrite and everything has been annotated then exit
     if (!overwrite && all(complete.cases(vars$tbl))) {
       message('Plates have already been annotated. Set "overwrite = TRUE" to re-annotate.')
-      return(paste(dir, output_path, sep = '/'))
+      return(invisible(dir))
     }
 
     vars$user  <- vars$tbl$owner[1]
     vars$email <- vars$tbl$email[1]
     vars$ts    <- vars$tbl$time_series[1]
-
-    vars$tbl1 <-
-      vars$tbl %>%
+    vars$tbl1  <-
+      (vars$tbl) %>%
       select(file, time, group) %>%
       distinct
-
-    # Check that there is only one timepoint for each file
-    verify_tbl1 <- count(vars$tbl1, file) %>% filter(n > 1)
-    if (nrow(verify_tbl1) > 0) {
-      print(vars$tbl1[which(vars$tbl1$file %in% verify_tbl1$file), ])
-      stop(
-        paste(
-          'Files do not uniquely map to end time and group number. Please',
-          'fix these issues in the previously saved annotation data located at:\n',
-          paste0(home, '/screenmill-plate-annotations.csv')
-        )
-      )
-    }
-
-    vars$tbl2 <-
-      vars$tbl %>%
+    vars$tbl2  <-
+      (vars$tbl) %>%
       select(group, crop_template, start, positions, temperature) %>%
       distinct
-
     vars$tbl3 <-
-      vars$tbl %>%
+      (vars$tbl) %>%
       select(
         group, crop_template, position, strain_collection_id, plate, query_id,
         treatment_id, media_id
@@ -338,9 +311,9 @@ annotate_plates <- function(dir = NULL,
           plate, query_id, treatment_id, media_id, temperature, time_series,
           timepoint, start, end = time, owner, email
         ) %>%
-        write_csv(output_path)
+        write_csv(target)
 
-      stopApp(paste(dir, output_path, sep = '/'))
+      stopApp(invisible(dir))
     })
   }
 
@@ -450,7 +423,7 @@ annotate_plates <- function(dir = NULL,
 
 
 # ---- Utilities: screenmill ----
-image_data <- function(dir = '.', ext =  '\\.tiff?$|\\.jpe?g$|\\.png$') {
+image_data <- function(dir, ext =  '\\.tiff?$|\\.jpe?g$|\\.png$') {
 
   paths <- list.files(dir, pattern = ext, full.names = T)
 
