@@ -96,6 +96,8 @@ calibrate_crop <- function(dir,
   for (file in templates) {
 
     # ---- Rough Crop ----
+    positions <- current$position[which(current$file == basename(file))]
+
     # Read as greyscale image
     message('Reading ', basename(file), ' ...')
     img <- EBImage::readImage(file)
@@ -106,7 +108,7 @@ calibrate_crop <- function(dir,
     # Find crop coordinates
     message('Rough cropping ', basename(file), ' ...')
     rough <- rough_crop(img, thresh, invert, rough_pad)
-    rough_crop_prog <- progress_estimated(nrow(rough), 3)
+    rough_crop_prog <- progress_estimated(length(positions), 3)
 
     # Add to rough crops target
     rough_crops <- rough %>% mutate(file = basename(file)) %>% bind_rows(rough_crops)
@@ -122,10 +124,9 @@ calibrate_crop <- function(dir,
     }
 
     # Error for too many annotated positions
-    positions <- current$position[which(current$file == basename(file))]
     if (nrow(rough) < length(positions)) {
       stop(
-        nrow(rough), 'plate positions were detected, but there were ',
+        nrow(rough), ' plate positions were detected, but there were ',
         max(positions), ' annotated positions. See ?annotate_plates for more help.')
     }
 
@@ -138,9 +139,8 @@ calibrate_crop <- function(dir,
 
     # Message for unannotated positions
     if (nrow(rough) > length(positions)) {
-      message(
-        nrow(rough), 'positions were detected, but only annotated positions (',
-        paste(positions, collapse = ', '), ') were used.')
+      message('Keeping positions (', paste(positions, collapse = ', '), ') of ',
+        nrow(rough), ' available.')
     }
 
     # ---- Rotate/Fine Crop ----
