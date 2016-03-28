@@ -4,6 +4,7 @@
 #' Crop plates from images.
 #'
 #' @param dir Directory of images to crop.
+#' @param target Target directory for saving images.
 #' @param overwrite Should existing cropped images be overwritten?
 #' Defaults to \code{FALSE}.
 #'
@@ -78,5 +79,70 @@ crop <- function(dir, target = 'cropped', overwrite = FALSE) {
 
   write_csv(data, path)
   message('Finished!')
+  return(invisible(dir))
+}
+
+# ---- Display Calibration ----
+#' Display crop calibration
+#'
+#' Convenience function for displaying crop calibrations. Usefull for viewing
+#' the result of manually edited
+#'
+#' @param dir Directory of images
+#' @param groups Cropping groups to display. Defaults to \code{NULL} which will
+#' display all groups.
+#' @param positions Positions to display. Defaults to \code{NULL} which will
+#' display all positions.
+#'
+#' @export
+
+display_calibration <- function(dir = '.', groups = NULL, positions = NULL) {
+  # only necessary for bug in EBImage < 4.13.7
+  old <- par(no.readonly = TRUE)
+  on.exit(par(old))
+
+  # Find screenmill-plates
+  dir <- gsub('/$', '', dir)
+  if (is.dir(dir)) {
+    path <- paste(dir, 'screenmill-plates.csv', sep = '/')
+  } else {
+    path <- dir
+  }
+  if (!file.exists(path)) {
+    stop('Could not find ', path, '. Please annotate plates before cropping.
+         See ?annotate_plates for more details.')
+  }
+
+  calibration <- screenmill_plates(path)
+  if (!is.null(groups)) {
+    calibration <- filter(calibration, group %in% c(0, groups))
+  }
+  if (!is.null(positions)) {
+    calibration <- filter(calibration, position %in% c(0, positions))
+  }
+
+  files <- paste0(dir, '/', unique(calibration$crop_template))
+  for (file in files) {
+
+    # Get data for file
+    coords <- calibration[which(calibration$file == basename(file)), ]
+
+    # Read as greyscale image
+    img <- EBImage::readImage(file)
+    if (EBImage::colorMode(img)) {
+      img <- EBImage::channel(img, 'luminance')
+    }
+
+    # Apply Crop calibration
+    lapply(1:nrow(coords), function(p) {
+      rough   <- with(coords, img[ left[p]:right[p], top[p]:bot[p] ])
+      rotated <- rotate(rough, coords$rotate[p])
+      fine    <- with(coords, rotated[ fine_left[p]:fine_right[p], fine_top[p]:fine_bot[p] ])
+      EBImage::display(fine, method = 'raster')
+      x <- nrow(fine) / 2
+      y <- ncol(fine) / 2
+      text(x, y, labels = paste0('Group: ', coords$group[p], '\nPosition: ', coords$position[p]), col = 'red', cex = 1.5)
+    })
+  }
   return(invisible(dir))
 }

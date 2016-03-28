@@ -7,7 +7,9 @@
 crop(dir, target = "cropped", overwrite = FALSE)
 }
 \arguments{
-\item{dir}{Directory of images to process.}
+\item{dir}{Directory of images to crop.}
+
+\item{target}{Target directory for saving images.}
 
 \item{overwrite}{Should existing cropped images be overwritten?
 Defaults to \code{FALSE}.}
