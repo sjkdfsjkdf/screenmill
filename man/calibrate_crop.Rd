@@ -30,8 +30,8 @@ Recommended \code{TRUE} if colonies are darker than the plate.}
 \item{display}{Should cropped images be displayed for review?
 Defaults to \code{TRUE}.}
 
-\item{overwrite}{Should an existing screenmill plate annotation file be
-overwritten? Defaults to \code{FALSE}.}
+\item{overwrite}{Should existing crop calibration be overwritten?
+Defaults to \code{FALSE}.}
 }
 \description{
 This function calibrates plate cropping and rotation parameters for an image

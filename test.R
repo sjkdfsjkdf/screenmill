@@ -1,11 +1,11 @@
 library(screenmill)
-library(dplyr)
 
 # Current pipeline
-path <-
-  'test-scans' %>%
-  annotate_plates %>%
-  calibrate_crop
+where <- 'test-scans'
+annotate_plates(where)
+calibrate_crop(where)
+annotate_plates(where, overwrite = T)
+calibrate_crop(where, overwrite = T)
 
 ###-------- This was in Fine crop, it splits the grid to identify and parse objects -------------
 rotated[cols1, ] <- 0

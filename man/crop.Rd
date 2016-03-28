@@ -4,11 +4,13 @@
 \alias{crop}
 \title{Crop plates}
 \usage{
-crop(screenmill_plates = "test-scans/screenmill-plates.csv")
+crop(dir, target = "cropped", overwrite = FALSE)
 }
 \arguments{
-\item{screenmill_plates}{Path to a screenmill plates annotation CSV file
-(the result of \link{annotate_plates}).}
+\item{dir}{Directory of images to process.}
+
+\item{overwrite}{Should existing cropped images be overwritten?
+Defaults to \code{FALSE}.}
 }
 \description{
 Crop plates from images.

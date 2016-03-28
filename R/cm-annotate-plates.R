@@ -15,8 +15,8 @@
 #' @param treatments A vector or dataframe of available treatments. Uses
 #' \code{getOption('screenmill.treatments')} by default (see Details).
 #' @param temperatures A vector of recommended temperatures.
-#' @param overwrite Should an existing screenmill plate annotation file be
-#' overwritten? Defaults to \code{FALSE}.
+#' @param overwrite Should existing annotations be overwritten?
+#' Defaults to \code{FALSE}.
 #'
 #' @details This application is provided to make annotation of plates in
 #' colony growth experiments easier and safer. It will try to warn, or prevent
