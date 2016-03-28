@@ -29,8 +29,8 @@ collections. Uses \code{getOption('screenmill.strain_collections')}
 
 \item{temperatures}{A vector of recommended temperatures.}
 
-\item{overwrite}{Should an existing screenmill plate annotation file be
-overwritten? Defaults to \code{FALSE}.}
+\item{overwrite}{Should existing annotations be overwritten?
+Defaults to \code{FALSE}.}
 }
 \description{
 This function launches a Shiny gadget that allows a user to record information

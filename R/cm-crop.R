@@ -3,8 +3,9 @@
 #'
 #' Crop plates from images.
 #'
-#' @param screenmill_plates Path to a screenmill plates annotation CSV file
-#' (the result of \link{annotate_plates}).
+#' @param dir Directory of images to process.
+#' @param overwrite Should existing cropped images be overwritten?
+#' Defaults to \code{FALSE}.
 #'
 #' @importFrom stringr str_pad
 #' @export
