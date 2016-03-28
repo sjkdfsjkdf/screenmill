@@ -514,6 +514,7 @@ find_valleys <- function(y, thr, invert = F) {
 }
 
 # Read screenmill-plates.csv
+#' @importFrom readr read_csv cols
 screenmill_plates <- function(path) {
 
   df <-
