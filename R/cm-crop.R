@@ -3,7 +3,7 @@
 #'
 #' Crop plates from images.
 #'
-#' @param dir Directory of images to process.
+#' @param dir Directory of images to crop.
 #' @param overwrite Should existing cropped images be overwritten?
 #' Defaults to \code{FALSE}.
 #'
@@ -69,8 +69,8 @@ crop <- function(dir, target = 'cropped', overwrite = FALSE) {
     # Apply Crop calibration
     lapply(1:nrow(coords), function(p) {
       rough   <- with(coords, img[ left[p]:right[p], top[p]:bot[p] ])
-      rotated <- EBImage::rotate(rough, coords$rotate[p])
-      fine    <- with(coords, img[ fine_left[p]:fine_right[p], fine_top[p]:fine_bot[p] ])
+      rotated <- rotate(rough, coords$rotate[p])
+      fine    <- with(coords, rotated[ fine_left[p]:fine_right[p], fine_top[p]:fine_bot[p] ])
       EBImage::writeImage(fine, paste0(dir, '/', coords$img_crop[p]), type = 'tiff')
     })
     progress$tick()$print()
