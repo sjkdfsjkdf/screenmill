@@ -11,6 +11,7 @@ Description: This package includes tools for working with solid agar colony
 License: GPL-3
 LazyData: TRUE
 VignetteBuilder: knitr
+biocViews: Software, Genetics, FunctionalGenomics
 Imports:
     EBImage,
     dplyr,
