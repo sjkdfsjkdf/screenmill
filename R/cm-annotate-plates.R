@@ -30,6 +30,8 @@
 #' To quit without saving, just press "Cancel".
 #'
 #' @importFrom readr write_csv read_csv cols_only
+#' @importFrom rhandsontable rhandsontable hot_col hot_cols hot_validate_numeric
+#' hot_table renderRHandsontable rHandsontableOutput
 #' @export
 
 annotate_plates <- function(dir = NULL,
