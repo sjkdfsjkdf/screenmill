@@ -14,5 +14,4 @@
 #' @import assertthat
 #' @import shiny
 #' @import miniUI
-#' @import rhandsontable
 NULL
