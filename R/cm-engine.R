@@ -503,6 +503,10 @@ find_valleys <- function(y, thr, invert = F) {
   valleys <- unique(regions)
   valleys <- valleys[which(valleys != 0)]
 
+  if (length(valleys) < 1) {
+    return(data_frame(left = numeric(), mid = numeric(), right = numeric()))
+  }
+
   # Find left, middle, and right edge of valley
   bind_rows(
     lapply(valleys, function(v) {
@@ -510,7 +514,7 @@ find_valleys <- function(y, thr, invert = F) {
       data_frame(left = min(x), mid = mean(x), right = max(x))
     })
   ) %>%
-    mutate(n = 1:n())
+  mutate(n = 1:n())
 }
 
 # Read screenmill-plates.csv
