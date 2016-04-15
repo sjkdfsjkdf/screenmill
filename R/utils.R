@@ -9,10 +9,17 @@ assign_names <- function(x, names) { colnames(x) <- names; return(x) }
 # Utils: read_cm --------------------------------------------------------------
 
 # Parse names in colony measurement log file
-# @param lines Character; Vector plate plate lines from CM engine log.
-# @param by Delimiter used tp splite plate names, numbers, and conditions.
+# @param lines Character; Parse plate lines from CM engine log.
+# @param by Delimiter used to split plate names, numbers, and conditions.
+#' @importFrom stringr str_count
 
 parse_names <- function(lines, by = ',') {
+
+  # Add commas if missing
+  commas <- sapply(2 - str_count(lines, ','), function(x) paste(rep(',', x), collapse = ''))
+  lines <- str_replace(lines, '(?=(\\.[^\\.]*$))', commas)
+
+  # Split lines and combine
   do.call(rbind, strsplit(lines, by)) %>%
     assign_names(c('scan_name', 'plate', 'scan_cond')) %>%
     as.data.frame(stringsAsFactors = FALSE) %>%
