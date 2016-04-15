@@ -27,10 +27,10 @@ read_cm <- function(path, replicates, dim = c(2, 3)) {
   lines <- readLines(path)
 
   # parse and clean plate attributes
-  plates <- grep(',', lines, value = TRUE) %>% parse_names(by = ',')
+  plates <- grep('[:alpha:]', lines, value = TRUE) %>% parse_names(by = ',')
 
   # drop plate names and parse measurements
-  cm <- lines[-grep(',', lines)] %>% parse_measurements(by = '\t')
+  cm <- lines[-grep('[:alpha:]', lines)] %>% parse_measurements(by = '\t')
 
   # Detect density and dimensions based on dim argument
   nobs    <- nrow(cm)
