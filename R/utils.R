@@ -11,7 +11,7 @@ assign_names <- function(x, names) { colnames(x) <- names; return(x) }
 # Parse names in colony measurement log file
 # @param lines Character; Parse plate lines from CM engine log.
 # @param by Delimiter used to split plate names, numbers, and conditions.
-#' @importFrom stringr str_count
+#' @importFrom stringr str_count str_replace
 
 parse_names <- function(lines, by = ',') {
 
