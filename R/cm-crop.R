@@ -72,7 +72,13 @@ crop <- function(dir, target = 'cropped', overwrite = FALSE) {
       rough   <- with(coords, img[ left[p]:right[p], top[p]:bot[p] ])
       rotated <- rotate(rough, coords$rotate[p])
       fine    <- with(coords, rotated[ fine_left[p]:fine_right[p], fine_top[p]:fine_bot[p] ])
-      EBImage::writeImage(fine, paste0(dir, '/', coords$img_crop[p]), type = 'tiff', compression = 'none')
+      EBImage::writeImage(
+        fine,
+        paste0(dir, '/', coords$img_crop[p]),
+        type = 'tiff',
+        compression = 'none',
+        bits.per.sample = 8L
+      )
     })
     progress$tick()$print()
   }
