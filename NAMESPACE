@@ -2,6 +2,7 @@
 
 export(annotate_plates)
 export(calibrate_crop)
+export(calibrate_grid)
 export(crop)
 export(crop_batch)
 export(display_calibration)
@@ -44,4 +45,5 @@ importFrom(spatstat,nnwhich)
 importFrom(stringr,str_count)
 importFrom(stringr,str_pad)
 importFrom(stringr,str_replace)
+importFrom(tidyr,complete)
 importFrom(tidyr,gather)
