@@ -364,7 +364,6 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
 #'
 #' Adapted from \link[EBImage]{computeFeatures}
 #'
-#' @importFrom spatstat nndist nnwhich
 #' @export
 
 object_features <- function(img) {
@@ -383,7 +382,6 @@ object_features <- function(img) {
     summarise_(
       perimeter   = ~n(),
       radius_mean = ~mean(radius),
-      radius_sd   = ~sd(radius),
       radius_min  = ~min(radius),
       radius_max  = ~max(radius)
     )
@@ -414,10 +412,14 @@ object_features <- function(img) {
   w   <- (col(m) * row(m)) * 1
   m11 <- sapply(objs, function(z) sum(w[z]))
 
+  x  <- m10 / m00
+  y  <- m01 / m00
+  nn <- nearestNeighbor(x, y)
+
   data_frame(
     obj   = 1:length(objs),
-    x     = m10 / m00,
-    y     = m01 / m00,
+    x     = x,
+    y     = y,
     area  = m00,
     mu20  = m20 / m00 - x^2,
     mu02  = m02 / m00 - y^2,
@@ -427,8 +429,8 @@ object_features <- function(img) {
     major = sqrt((mu20 + mu02 + det) / 2) * 4,
     minor = sqrt((mu20 + mu02 - det) / 2) * 4,
     eccen = sqrt(1 - minor^2 / major^2),
-    ndist = nndist(x, y),
-    nwhich = nnwhich(x, y)
+    ndist = nn$dist,
+    nwhich = nn$which
   ) %>%
     left_join(radii, by = 'obj') %>%
     select_(~obj, ~x, ~y, ~area, ~perimeter, ~radius_mean, ~radius_max,
@@ -515,6 +517,16 @@ find_valleys <- function(y, thr, invert = F) {
     })
   ) %>%
   mutate(n = 1:n())
+}
+
+# Read an image in greyscale
+read_greyscale <- function(path, invert = FALSE) {
+  img <- EBImage::readImage(path)
+  if (EBImage::colorMode(img)) {
+    img <- EBImage::channel(img, 'luminance')
+  }
+  if (invert) img <- 1 - img
+  return(img)
 }
 
 # Read screenmill-plates.csv

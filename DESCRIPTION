@@ -12,24 +12,24 @@ License: GPL-3
 LazyData: TRUE
 VignetteBuilder: knitr
 biocViews: Software, Genetics, FunctionalGenomics
+LinkingTo: Rcpp
 Imports:
-    EBImage,
+    Rcpp (>= 0.12.3),
     dplyr,
+    tidyr,
+    readr,
+    stringr,
+    EBImage,
     assertthat,
     R.utils,
-    tidyr,
     data.table,
     MASS,
-    spatstat,
-    stringr,
     shiny (>= 0.13),
     miniUI (>= 0.1.1),
     rstudioapi (>= 0.5),
-    rhandsontable (>= 0.3.1),
-    readr
+    rhandsontable (>= 0.3.1)
 Suggests:
-    ggplot2,
-    rothfreezer
+    ggplot2
 Remotes:
     github::EricEdwardBryant/rothfreezer
 RoxygenNote: 5.0.1
