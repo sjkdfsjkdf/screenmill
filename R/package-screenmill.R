@@ -14,4 +14,6 @@
 #' @import assertthat
 #' @import shiny
 #' @import miniUI
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib screenmill
 NULL
