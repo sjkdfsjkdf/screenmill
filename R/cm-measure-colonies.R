@@ -1,4 +1,5 @@
 #' @importFrom parallel mclapply
+#' @export
 
 measure_colonies <- function(dir, invert = TRUE, overwrite = FALSE) {
 
@@ -30,7 +31,6 @@ measure_colonies <- function(dir, invert = TRUE, overwrite = FALSE) {
   time <- Sys.time()
 
   # ---- Measure grid locations for each cropped plate ----
-
   result <-
     mclapply(1:nrow(plates), measure_plate, plates, grids, invert, mc.cores = cores) %>%
     bind_rows
@@ -44,7 +44,6 @@ measure_colonies <- function(dir, invert = TRUE, overwrite = FALSE) {
 
 
 measure_plate <- function(i, plates, grids, inv) {
-  setTxtProgressBar(pb, i)
   img   <- imageData(read_greyscale(plates$path[i], invert = inv))
   tmp_i <- plates$grid_template[i]
   img_i <- plates$img_crop[i]
