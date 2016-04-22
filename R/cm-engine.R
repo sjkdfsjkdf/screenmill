@@ -45,6 +45,7 @@
 #' Fine cropping finds the nearest object edge (problematic for plates without
 #' any growth on the intended grid edges).
 #'
+#' @importFrom parallel mclapply detectCores
 #' @export
 
 calibrate_crop <- function(dir,
@@ -108,7 +109,6 @@ calibrate_crop <- function(dir,
     # Find crop coordinates
     message('Rough cropping ', basename(file), ' ...')
     rough <- rough_crop(img, thresh, invert, rough_pad)
-    rough_crop_prog <- progress_estimated(length(positions), 3)
 
     # Add to rough crops target
     rough_crops <- rough %>% mutate(file = basename(file)) %>% bind_rows(rough_crops)
@@ -131,11 +131,11 @@ calibrate_crop <- function(dir,
     }
 
     # Crop plate images for all annotated positions
-
-    plates <- lapply(positions, function(p) {
-      rough_crop_prog$tick()$print()
+    cores <- max(2L, detectCores(), na.rm = T)
+    img <- imageData(img)
+    plates <- mclapply(positions, function(p) {
       with(rough, img[ left[p]:right[p], top[p]:bot[p] ])
-    })
+    }, mc.cores = cores)
 
     # Message for unannotated positions
     if (nrow(rough) > length(positions)) {
@@ -148,7 +148,7 @@ calibrate_crop <- function(dir,
     fine_crop_prog <- progress_estimated(length(plates))
     for (position in 1:length(plates)) {
 
-      # Select Plate
+      # Select Plate as Image
       plate <- plates[[position]]
 
       # Find crop and rotation coordinates

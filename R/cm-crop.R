@@ -67,8 +67,11 @@ crop <- function(dir, target = 'cropped', overwrite = FALSE) {
       img <- EBImage::channel(img, 'luminance')
     }
 
+    img <- imageData(img)
+
     # Apply Crop calibration
-    lapply(1:nrow(coords), function(p) {
+    cores <- max(2L, detectCores(), na.rm = T)
+    mclapply(1:nrow(coords), function(p) {
       rough   <- with(coords, img[ left[p]:right[p], top[p]:bot[p] ])
       rotated <- rotate(rough, coords$rotate[p])
       fine    <- with(coords, rotated[ fine_left[p]:fine_right[p], fine_top[p]:fine_bot[p] ])
@@ -79,7 +82,7 @@ crop <- function(dir, target = 'cropped', overwrite = FALSE) {
         compression = 'none',
         bits.per.sample = 8L
       )
-    })
+    }, mc.cores = cores)
     progress$tick()$print()
   }
 
