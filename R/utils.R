@@ -6,6 +6,7 @@
 
 assign_names <- function(x, names) { colnames(x) <- names; return(x) }
 
+
 # Utils: read_cm --------------------------------------------------------------
 
 # Parse names in colony measurement log file
@@ -115,60 +116,6 @@ find_header <- function(path, match, delim, max = 100) {
   return(list(line = line, header = unlist(strsplit(header, delim))))
 }
 
-# Utils: new_batch_metadata ---------------------------------------------------
-
-# Write screens csv template
-# @param cm Path to colony measurement log file.
-
-write_screens_csv <- function(cm) {
-  dirpath <- dirname(cm)
-  readLines(cm) %>%
-    grep(',', ., value = TRUE) %>%
-    parse_names(by = ',') %>%
-    assign_names(c('scan_name', 'plate', 'scan_cond')) %>%
-    select_('scan_name', 'scan_cond') %>%
-    distinct %>%
-    mutate_(
-      screen_name          = ~'Short descriptive name',
-      screen_description   = ~'Long description',
-      analysis_id          = ~'ID of analysis',
-      strain_collection_id = ~'ID of strain collection used in screen',
-      query_type           = ~'plasmid|drug|strain',
-      query_id             = ~'Query ID (e.g. plasmid ID; strain ID; drug ID)',
-      query_name           = ~'Brief description of query (e.g. GALp-CTF4)',
-      control_screen_id    = ~'This screen_id of the control query',
-      method_id            = ~'The screening method (e.g. SPA; SGA; drug)',
-      media_id             = ~'Media used for final incubation',
-      timepoint            = ~'Timepoint (e.g. 0, 1, 2, 3, 4...)',
-      temperature          = ~'Temperature (C) of final incubation',
-      screen_owner         = ~'Who performed the screen',
-      screen_notes         = ~'Notes regarding this screen',
-      scan_cond            = ~ifelse(scan_cond == '', 'none', scan_cond),
-      screen_id = ~paste(Sys.Date(), scan_name, scan_cond, sep = '-')) %>%
-    arrange_(~scan_name, ~scan_cond) %>%
-    select_(~screen_id, ~scan_name:screen_notes) %>%
-    write.csv(file = paste0(dirpath, '/screens.csv'), row.names = FALSE)
-}
-
-# Write plates csv template
-# @param cm Path to colony measurement log file.
-
-write_plates_csv <- function(cm) {
-  dirpath <- dirname(cm)
-  readLines(cm) %>%
-    grep(',', ., value = TRUE) %>%
-    parse_names(by = ',') %>%
-    assign_names(c('scan_name', 'plate', 'scan_cond')) %>%
-    select_('scan_name', 'scan_cond', 'plate') %>%
-    distinct %>%
-    mutate_(
-      incubation_start = ~'Format: 2015-04-27 17:04:35 EDT',
-      incubation_end   = ~'Format: 2015-04-27 17:04:35 EDT',
-      scan_cond        = ~ifelse(scan_cond == '', 'none', scan_cond)
-    ) %>%
-    arrange_(~scan_name, ~scan_cond, ~plate) %>%
-    write.csv(file = paste0(dirpath, '/plates.csv'), row.names = FALSE)
-}
 
 # Utils: new_strain_collection --------------------------------------------
 
