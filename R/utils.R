@@ -99,9 +99,9 @@ map_row <- function(librows, replicates, nobs) {
 # @param path Character; path to file.
 # @param match Regular expression used to match header line.
 # @param delim Delimiter used to split header
-#' @importFrom R.utils countLines
+# @param max Maximum number of lines to check
 
-find_header <- function(path, match, delim) {
+find_header <- function(path, match, delim, max = 100) {
   # Open file
   con <- file(path, open = "r")
   on.exit(close(con))
@@ -109,10 +109,9 @@ find_header <- function(path, match, delim) {
   line <- 1
   while (length(header <- readLines(con, n = 1, warn = FALSE)) > 0) {
     if (grepl(match, header[[1]])) break
-    else line <- line + 1; next
+    else line <- line + 1
+    if (line > max) stop('Header not found within first ', max, 'lines.')
   }
-  # Stop if the header was not found
-  stopifnot(line < R.utils::countLines(path))
   return(list(line = line, header = unlist(strsplit(header, delim))))
 }
 

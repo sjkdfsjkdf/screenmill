@@ -21,7 +21,6 @@ Imports:
     stringr,
     EBImage,
     assertthat,
-    R.utils,
     data.table,
     MASS,
     shiny (>= 0.13),
