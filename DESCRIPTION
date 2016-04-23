@@ -15,13 +15,12 @@ biocViews: Software, Genetics, FunctionalGenomics
 LinkingTo: Rcpp
 Imports:
     Rcpp (>= 0.12.3),
-    dplyr,
-    tidyr,
-    readr,
+    dplyr (>= 0.4.3),
+    tidyr (>= 0.3.0),
+    readr (>= 0.2.2),
     stringr,
     EBImage,
     assertthat,
-    data.table,
     MASS,
     shiny (>= 0.13),
     miniUI (>= 0.1.1),
