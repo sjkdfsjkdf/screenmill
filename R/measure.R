@@ -13,23 +13,23 @@
 
 crop <- function(dir, target = 'cropped', overwrite = FALSE) {
 
-  # Find screenmill-plates file in directory
+  # Find screenmill-annotations file in directory
   dir <- gsub('/$', '', dir)
   target <- gsub('/$|^\\./', '', target)
   full_target <- paste0(dir, '/', target)
   if (is.dir(dir)) {
-    path <- paste(dir, 'screenmill-plates.csv', sep = '/')
+    path <- paste(dir, 'screenmill-annotations.csv', sep = '/')
   } else {
     path <- dir
   }
   if (!file.exists(path)) {
     stop('Could not find ', path, '. Please annotate and calibrate ',
-         'plates before cropping. See ?annotate_plates and ?calibrate_crop for ',
+         'plates before cropping. See ?annotate and ?calibrate for ',
          'more details.')
   }
 
   # Read screenmill plate annotations
-  screenmill <- screenmill_plates(path)
+  screenmill <- screenmill_annotations(path)
 
   # Check current status of screenmill
   if(!attr(screenmill, 'calibrated')) {
@@ -101,7 +101,7 @@ measure_colonies <- function(dir, invert = TRUE, overwrite = FALSE) {
   dir <- gsub('/$', '', dir)  # clean trailing slash
   stopifnot(is.dir(dir), is.flag(invert), is.flag(overwrite))
 
-  plates_path <- paste(dir, 'screenmill-plates.csv', sep = '/')
+  plates_path <- paste(dir, 'screenmill-annotations.csv', sep = '/')
   grid_path   <- paste(dir, 'screenmill-grid.csv', sep = '/')
   target      <- paste(dir, 'screenmill-measurements.csv', sep = '/')
 
@@ -114,7 +114,7 @@ measure_colonies <- function(dir, invert = TRUE, overwrite = FALSE) {
 
   # ---- Read screenmill tables ----
   plates <-
-    screenmill_plates(plates_path) %>%
+    screenmill_annotations(plates_path) %>%
     select(img_crop, grid_template) %>%
     mutate(path = paste(dir, img_crop, sep = '/'))
   grids <- read_csv(grid_path)

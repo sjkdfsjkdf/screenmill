@@ -8,7 +8,7 @@ The `screenmill` *R* package can be installed by running the following *R*
 commands. You must have [*R*](https://www.r-project.org) (>= 3.2.2) already 
 installed, and [Rstudio](https://www.rstudio.com) (>= v0.99.878) is recommended 
 for using the "Shiny gadgets" provided in this package 
-(e.g. `screenmill::annotate_plates()`).
+(e.g. `screenmill::annotate()`).
 
 ```r
 # devtools (>= 1.9.1) supports installation of GitHub "Remotes" in DESCRIPTION

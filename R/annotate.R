@@ -47,7 +47,7 @@ annotate <- function(dir = NULL,
     dir <- dirname(file.choose())
   }
   dir <- gsub('/$', '', dir)
-  target <- paste(dir, 'screenmill-plates.csv', sep = '/')
+  target <- paste(dir, 'screenmill-annotations.csv', sep = '/')
 
   # Get information about images - path, file, standard, time_series, time
   images <- image_data(dir)
@@ -71,7 +71,7 @@ annotate <- function(dir = NULL,
   } else {
     # Restore variables
     vars$tbl <-
-      screenmill_plates(target) %>%
+      screenmill_annotations(target) %>%
       group_by(file, group) %>%
       mutate(positions = n(), time = end) %>%
       ungroup

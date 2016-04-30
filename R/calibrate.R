@@ -45,226 +45,180 @@
 #' Fine cropping finds the nearest object edge (problematic for plates without
 #' any growth on the intended grid edges).
 #'
-#' @importFrom parallel mclapply detectCores
 #' @export
 
-calibrate_crop <- function(dir,
-                           rotate = 90, range = 6, step = 0.2,
-                           thresh = 0.03, invert = TRUE,
-                           rough_pad = c(0, 0, 0, 0), fine_pad = c(5, 5, 5, 5),
-                           display = TRUE, overwrite = FALSE) {
+calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
+                      invert = TRUE, rough_pad = c(0, 0, 0, 0),
+                      fine_pad = c(5, 5, 5, 5), display = TRUE,
+                      overwrite = FALSE) {
 
-  # ---- Setup ----
-  if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }  # only necessary for bug in EBImage < 4.13.7
+  # Save plot parameter defaults. Only necessary for bug in EBImage < 4.13.7
+  if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
 
   # Validate input
   stopifnot(
-    is.string(dir), is.number(rotate), is.number(range), is.number(step),
-    is.number(thresh), is.flag(invert), is.flag(display), is.flag(overwrite),
-    is.numeric(rough_pad) && length(rough_pad) == 4,
+    is.string(dir), is.dir(dir), is.number(rotate), is.number(range),
+    is.number(step), is.number(thresh), is.flag(invert), is.flag(display),
+    is.flag(overwrite), is.numeric(rough_pad) && length(rough_pad) == 4,
     is.numeric(fine_pad)  && length(fine_pad)  == 4
   )
 
-  # Determine working directory
+  # Clean trailing slash from directory input
   dir <- gsub('/$', '', dir)
-  if (is.dir(dir)) {
-    path <- paste(dir, 'screenmill-plates.csv', sep = '/')
-  } else {
-    path <- dir
-  }
-  if (!file.exists(path)) {
-    stop('Could not find ', path, '. Please annotate plates before cropping.
-         See ?annotate_plates for more details.')
-  }
+  plt_path <- paste(dir, 'screenmill-annotations.csv', sep = '/')
+  crp_path <- paste(dir, 'screenmill-calibration-crop.csv', sep = '/')
+  grd_path <- paste(dir, 'screenmill-calibration-grid.csv', sep = '/')
 
-  current <- screenmill_plates(path)
+  # Stop if plates have not yet been annotated
+  if (!file.exists(plt_path)) stop('Could not find ', plt_path, '. Please annotate plates before cropping. See ?annotate for more details.')
 
-  if (attr(current, 'calibrated') && !overwrite) {
-    message('Cropping has already been calibrated. Set "overwrite = TRUE" to re-calibrate.')
+  if (!overwrite && (file.exists(crp_path) || file.exists(grd_path))) {
+    # Exit if already calibratd and no overwrite
+    message('This batch has already been calibrated. Set "overwrite = TRUE" to re-calibrate.')
     return(invisible(dir))
+  } else {
+    # Remove pre-existing files
+    if (file.exists(crp_path)) file.remove(crp_path)
+    if (file.exists(grd_path)) file.remove(grd_path)
   }
 
-  # Get crop templates
-  templates <- paste(dir, unique(current$crop_template), sep = '/')
+  # Get paths to templates relative to dir, and corresponding plate positions
+  annotation <- distinct(transmute(read_csv(plt_path), template = paste(dir, template, sep = '/'), position = position))
+  templates <- unique(annotation$template)
+  positions <- with(annotation, split(position, template))
 
   # Record start time
   time <- Sys.time()
 
-  # ---- initialize targets ----
-  rough_crops <- NULL
-  fine_crops  <- NULL
-
-  for (file in templates) {
-
-    # ---- Rough Crop ----
-    positions <- current$position[which(current$file == basename(file))]
-
-    # Read as greyscale image
-    message('Reading ', basename(file), ' ...')
-    img <- EBImage::readImage(file)
-    if (EBImage::colorMode(img)) {
-      img <- EBImage::channel(img, 'luminance')
-    }
-
-    # Find crop coordinates
-    message('Rough cropping ', basename(file), ' ...')
-    rough <- rough_crop(img, thresh, invert, rough_pad)
-
-    # Add to rough crops target
-    rough_crops <- rough %>% mutate(file = basename(file)) %>% bind_rows(rough_crops)
-
-    # Display rough cropped images in browser if desired
-    if (display) {
-      EBImage::display(img, method = 'raster')
-      with(rough, segments(left,  top, right, top, col = 'red'))
-      with(rough, segments(left,  bot, right, bot, col = 'red'))
-      with(rough, segments(left,  top, left,  bot, col = 'red'))
-      with(rough, segments(right, top, right, bot, col = 'red'))
-      with(rough, text(x_plate, y_plate, position, col = 'red'))
-    }
-
-    # Error for too many annotated positions
-    if (nrow(rough) < length(positions)) {
-      stop(
-        nrow(rough), ' plate positions were detected, but there were ',
-        max(positions), ' annotated positions. See ?annotate_plates for more help.')
-    }
-
-    # Crop plate images for all annotated positions
-    cores <- max(2L, detectCores(), na.rm = T)
-    img <- imageData(img)
-    plates <- mclapply(positions, function(p) {
-      with(rough, img[ left[p]:right[p], top[p]:bot[p] ])
-    }, mc.cores = cores)
-
-    # Message for unannotated positions
-    if (nrow(rough) > length(positions)) {
-      message('Keeping positions (', paste(positions, collapse = ', '), ') of ',
-              nrow(rough), ' available.')
-    }
-
-    # ---- Rotate/Fine Crop ----
-    message('Fine cropping ', basename(file), ' ...')
-    fine_crop_prog <- progress_estimated(length(plates))
-    for (position in 1:length(plates)) {
-
-      # Select Plate as Image
-      plate <- plates[[position]]
-
-      # Find crop and rotation coordinates
-      fine <- fine_crop(plate, rotate, range, step, fine_pad, invert)
-      fine_crop_prog$tick()$print()
-
-      # Add to fine crops target
-      fine_crops <-
-        fine %>%
-        mutate(file = basename(file), position = position) %>%
-        bind_rows(fine_crops)
-
-      # Display fine crop if desired
-      if (display) {
-        rotated <- EBImage::rotate(plate, fine$rotate)
-        cropped <- with(fine, rotated[fine_left:fine_right, fine_top:fine_bot])
-        EBImage::display(cropped, method = 'raster')
-        x <- nrow(cropped) / 2
-        y <- ncol(cropped) / 2
-        text(x, y, labels = paste(file, position, sep = '\n'), col = 'red', cex = 1.5)
-      }
-    }
-  }
-
-  message('Cropping calibrated for ', length(templates), ' image(s) in ',
-          format(round(Sys.time() - time, 2)))
-  # Write and return
-  current %>%
-    select_(~one_of(attr(., 'annotations'))) %>%
-    left_join(rough_crops, by = c('crop_template' = 'file', 'position')) %>%
-    left_join(fine_crops,  by = c('crop_template' = 'file', 'position')) %>%
-    select_(~date, ~file, ~position, ~everything()) %>%
-    write_csv(path)
-  return(invisible(dir))
-}
-
-
-# ---- Calibrate Grid --------------------------------------------------------
-#' Calibrate Colony Grid
-#'
-#' Calibrates colony grid coordinates in for each unique grid template found
-#' in \code{screenmill-plates.csv} (see \link{annotate_plates}).
-#'
-#' @param dir Path to screenmill project directory.
-#' @param invert Should the image be inverted. (Recommended \code{TRUE} if
-#' colonies are darker than the background).
-#' @param display Should calibrated grid be displayed for review?
-#' Defaults to \code{TRUE}.
-#'
-#' @importFrom readr write_csv
-#' @export
-
-calibrate_grid <- function(dir, invert = TRUE, display = TRUE, overwrite = FALSE) {
-
-  # Determine working directory
-  dir <- gsub('/$', '', dir)
-  if (!is.dir(dir)) stop(dir, ' is not a directory')
-
-  annot  <- paste(dir, 'screenmill-plates.csv', sep = '/')
-  target <- paste(dir, 'screenmill-grid.csv', sep = '/')
-
-  if (!file.exists(annot)) stop('Could not find ', annot, '. Please annotate and crop plates before calibrating grid.')
-  if (file.exists(target) && !overwrite) {
-    message('Grids have already been calibrated. Set "overwrite = TRUE" to re-calibrate.')
-    return(invisible(dir))
-  }
-
-  # Get grid templates
-  plate_annotation <- screenmill_plates(annot)
-
-  if (is.null(plate_annotation$grid_template)) {
-    plate_annotation <-
-      plate_annotation %>%
-      group_by(crop_template, position) %>%
-      mutate(grid_template = img_crop[which(file == crop_template)[1]])
-  }
-
-  plates <- paste(dir, unique(plate_annotation$grid_template), sep = '/')
-
-  # Progress information
-  progress <- progress_estimated(length(plates), 3)
-  time <- Sys.time()
-  message('Calibrating ', length(plates), ' grid templates ...')
-
-  # ---- initialize target ----
-  result <- NULL
-
-  for (plate in plates) {
-    progress$tick()$print()
-
-    # Read as greyscale image
-    img <- EBImage::readImage(plate)
-    if (EBImage::colorMode(img)) {
-      img <- EBImage::channel(img, 'luminance')
-    }
-    if (invert) img <- 1 - img
-
-    result <-
-      locate_grid(img) %>%
-      mutate(grid_template = gsub(paste0(dir, '/'), '', plate, fixed = T)) %>%
-      bind_rows(result)
-  }
+  # Calibrate each template by iterating through templates and positions
+  mapply(
+    calibrate_template,
+    templates,
+    positions,
+    MoreArgs = list(thresh, invert, rough_pad, fine_pad, rotate, range, step, display, crp_path, grd_path)
+  )
   message('Finished in ', format(round(Sys.time() - time, 2)))
-
-  result <- select(result, grid_template, everything())
-  write_csv(plate_annotation, annot)
-  write_csv(result, target)
   return(invisible(dir))
 }
 
 
-# Locate Colony Grid
+
+# ---- Utilities: calibrate ---------------------------------------------------
+# Calibrate a single template image
 #
+# @param template path to template image
+# @param positions integer vector of plate positions
+# @param thresh ? TODO currently used to detect rough crop locations
+# @param invert Should the image be inverted
+# @param rough_pad Padding around rough crop
+# @param fine_pad Padding to add around fine crop
+# @param rotate Rough rotation angle in degrees
+# @param range Range of angles to explore in degrees
+# @param step Step interval to explore when optimizing rotation angle
+# @param display Should calibration be displayed
+# @param crp path to crop calibration output
+# @param grd path to grid calibration output
+#
+#' @importFrom readr write_csv
+
+calibrate_template <- function(template, positions, thresh, invert, rough_pad,
+                               fine_pad, rotate, range, step, display, crp, grd) {
+
+  # Read image in greyscale format
+  message('Calibrating ', basename(template), ' ...')
+  img <- read_greyscale(template)
+
+  # Determine rough crop coordinates
+  rough <- rough_crop(img, thresh, invert, rough_pad) %>% mutate_(template = ~basename(template))
+
+  # Message about unannotated positions
+  if (nrow(rough) > length(positions)) message('Keeping positions (', paste(positions, collapse = ', '), ') of ', nrow(rough), ' available.')
+
+  # Display rough cropped images in browser if desired
+  if (display) display_rough_crop(img, rough, 'red')
+
+  # Rough crop each plate
+  plates <- lapply(positions, function(p) with(rough, img[ rough_l[p]:rough_r[p], rough_t[p]:rough_b[p] ]))
+
+  # Determine fine crop coordinates
+  message('Cropping plates ...')
+  progress <- progress_estimated(length(positions))
+  fine <-
+    lapply(positions, function(p) {
+      progress$tick()$print()
+      fine_crop(plates[[p]], rotate, range, step, fine_pad, invert) %>%
+        mutate(template = basename(template), position = p)
+    }) %>%
+    bind_rows
+
+  # Determine grid coordinates
+  message('Locating colonies ...')
+  progress <- progress_estimated(length(positions))
+  grid <-
+    lapply(positions, function(p) {
+      progress$tick()$print()
+      plate <- plates[[p]]
+      if (invert) plate <- 1 - plate
+      rotated <- EBImage::rotate(plate, fine$rotate[p])
+      cropped <- with(fine, rotated[fine_l[p]:fine_r[p], fine_t[p]:fine_b[p]])
+
+      result <- locate_grid(cropped, radius = 0.9)
+
+      if (is.null(result)) {
+        warning(
+          'Failed to locate colony grid for ', basename(template),
+          ' at position ', p, '. This plate position has been skipped.')
+      } else {
+        result <- mutate_(result, template = ~basename(template), position = ~p)
+      }
+
+      # Display plate if desired
+      if (display) display_plate(cropped, result, template, p, text.color = 'red', grid.color = 'blue')
+
+      return(result)
+    }) %>%
+    bind_rows %>%
+    select_(~template, ~position, ~everything())
+
+  # Combine rough and fine crop coordinates
+  crop <- left_join(rough, fine, by = c('template', 'position')) %>%
+    select_(~template, ~position, ~everything())
+
+  # Write results to file
+  write_csv(crop, crp, append = file.exists(crp))
+  write_csv(grid, grd, append = file.exists(grd))
+}
+
+
+# ---- Display functions ------------------------------------------------------
+display_rough_crop <- function(img, rough, color) {
+  EBImage::display(img, method = 'raster')
+  with(rough, segments(rough_l, rough_t, rough_r, rough_t, col = color))
+  with(rough, segments(rough_l, rough_b, rough_r, rough_b, col = color))
+  with(rough, segments(rough_l, rough_t, rough_l, rough_b, col = color))
+  with(rough, segments(rough_r, rough_t, rough_r, rough_b, col = color))
+  with(rough, text(plate_x, plate_y, position, col = color))
+}
+
+display_plate <- function(img, grid, template, position, text.color, grid.color) {
+  EBImage::display(img, method = 'raster')
+
+  if (!is.null(grid)) {
+    with(grid, segments(l, t, r, t, col = grid.color))
+    with(grid, segments(l, b, r, b, col = grid.color))
+    with(grid, segments(l, t, l, b, col = grid.color))
+    with(grid, segments(r, t, r, b, col = grid.color))
+  }
+
+  x <- nrow(img) / 2
+  y <- ncol(img) / 2
+  text(x, y, labels = paste(basename(template), position, sep = '\n'), col = text.color, cex = 1.5)
+}
+
+# ---- Locate Colony Grid -----------------------------------------------------
 # Locate grid and determine background pixel intensity for a single image
 #
-# @param img An Image object. See \link[EBImage]{Image}.
+# @param img An Image object or matrix. See \link[EBImage]{Image}.
 # @param radius Fraction of the average distance between row/column centers and
 # edges. Affects the size of the selection box for each colony. Defaults to
 # 0.9 (i.e. 90%).
@@ -284,10 +238,12 @@ locate_grid <- function(img, radius = 0.9) {
   wat <- EBImage::watershed(EBImage::distmap(thr))
 
   # Detect rough location of rows and columns
-  cols <- grid_breaks(thr, 'col', thresh = 0.05, edges = 'mid')
-  rows <- grid_breaks(thr, 'row', thresh = 0.05, edges = 'mid')
+  cols <- grid_breaks(thr, 'col', thresh = 0.07, edges = 'mid')
+  rows <- grid_breaks(thr, 'row', thresh = 0.07, edges = 'mid')
   col_centers <- ((cols + lag(cols)) / 2)[-1]
   row_centers <- ((rows + lag(rows)) / 2)[-1]
+
+  if (length(col_centers) < 1 || length(row_centers) < 1) return(NULL)
 
   # Characterize objects and bin them into rows/columns
   objs <-
@@ -337,7 +293,7 @@ locate_grid <- function(img, radius = 0.9) {
       r = x + radius,
       t = y - radius,
       b = y + radius,
-      # Fix edges
+      # Fix edges if radius is out of bounds of image
       l = as.integer(round(ifelse(l < 1, 1, l))),
       r = as.integer(round(ifelse(r > nrow(img), nrow(img), r))),
       t = as.integer(round(ifelse(t < 1, 1, t))),
@@ -359,38 +315,38 @@ locate_grid <- function(img, radius = 0.9) {
 }
 
 
-# ---- Display Calibration ----
-#' Display crop calibration
-#'
-#' Convenience function for displaying crop calibrations. Usefull for viewing
-#' the result of manually edited
-#'
-#' @param dir Directory of images
-#' @param groups Cropping groups to display. Defaults to \code{NULL} which will
-#' display all groups.
-#' @param positions Positions to display. Defaults to \code{NULL} which will
-#' display all positions.
-#'
-#' @export
+# ---- Display Calibration: TODO ----------------------------------------------
+# Display crop calibration
+#
+# Convenience function for displaying crop calibrations. Usefull for viewing
+# the result of manually edited
+#
+# @param dir Directory of images
+# @param groups Cropping groups to display. Defaults to \code{NULL} which will
+# display all groups.
+# @param positions Positions to display. Defaults to \code{NULL} which will
+# display all positions.
+#
+# @export
 
 display_calibration <- function(dir = '.', groups = NULL, positions = NULL) {
   # only necessary for bug in EBImage < 4.13.7
   old <- par(no.readonly = TRUE)
   on.exit(par(old))
 
-  # Find screenmill-plates
+  # Find screenmill-annotations
   dir <- gsub('/$', '', dir)
   if (is.dir(dir)) {
-    path <- paste(dir, 'screenmill-plates.csv', sep = '/')
+    path <- paste(dir, 'screenmill-annotations.csv', sep = '/')
   } else {
     path <- dir
   }
   if (!file.exists(path)) {
     stop('Could not find ', path, '. Please annotate plates before cropping.
-         See ?annotate_plates for more details.')
+         See ?annotate for more details.')
   }
 
-  calibration <- screenmill_plates(path)
+  calibration <- screenmill_annotations(path)
   if (!is.null(groups)) {
     calibration <- filter(calibration, group %in% c(0, groups))
   }
@@ -398,7 +354,7 @@ display_calibration <- function(dir = '.', groups = NULL, positions = NULL) {
     calibration <- filter(calibration, position %in% c(0, positions))
   }
 
-  files <- paste0(dir, '/', unique(calibration$crop_template))
+  files <- paste0(dir, '/', unique(calibration$template))
   for (file in files) {
 
     # Get data for file

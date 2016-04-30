@@ -177,20 +177,19 @@ expand_letters <- function(len, letters) {
 
 rough_crop <- function(img, thresh, invert, pad) {
 
-  if (EBImage::colorMode(img)) img <- EBImage::channel(img, 'luminance')
   small <- EBImage::resize(img, h = ncol(img) / 10) > 0.5
 
   rows <-
     rowSums(small) %>%
     find_valleys(thr = thresh * nrow(small), invert = invert) %>%
     mutate_each(funs(. * 10), -n) %>%
-    rename_(x_plate = ~mid, plate_row = ~n)
+    rename_(plate_x = ~mid, plate_row = ~n, rough_l = ~left, rough_r = ~right)
 
   cols <-
     colSums(small) %>%
     find_valleys(thr = thresh * ncol(small), invert = invert) %>%
     mutate_each(funs(. * 10), -n) %>%
-    rename_(top = ~left, bot = ~right, y_plate = ~mid, plate_col = ~n)
+    rename_(plate_y = ~mid, plate_col = ~n, rough_t = ~left, rough_b = ~right)
 
   # Generate all combinations of detected rows and columns
   expand.grid(rows$plate_row, cols$plate_col) %>%
@@ -198,18 +197,18 @@ rough_crop <- function(img, thresh, invert, pad) {
     left_join(rows, by = 'plate_row') %>%
     left_join(cols, by = 'plate_col') %>%
     mutate(position = 1:n()) %>%
-    select_(~position, ~plate_row, ~plate_col, ~x_plate, ~y_plate, ~everything()) %>%
+    select_(~position, ~plate_row, ~plate_col, ~plate_x, ~plate_y, ~everything()) %>%
     mutate_(
       # Add padding if desired
-      left  = ~left - pad[1],
-      right = ~right + pad[2],
-      top   = ~top - pad[3],
-      bot   = ~bot + pad[4],
+      rough_l = ~rough_l - pad[1],
+      rough_r = ~rough_r + pad[2],
+      rough_t = ~rough_t - pad[3],
+      rough_b = ~rough_b + pad[4],
       # Limit edges if they excede dimensions of image after padding
-      left  = ~ifelse(left < 1, 1, left),
-      right = ~ifelse(right > nrow(img), nrow(img), right),
-      top   = ~ifelse(top < 1, 1, top),
-      bot   = ~ifelse(bot > ncol(img), ncol(img), bot)
+      rough_l = ~ifelse(rough_l < 1, 1, rough_l),
+      rough_r = ~ifelse(rough_r > nrow(img), nrow(img), rough_r),
+      rough_t = ~ifelse(rough_t < 1, 1, rough_t),
+      rough_b = ~ifelse(rough_b > ncol(img), ncol(img), rough_b)
     )
 }
 
@@ -231,14 +230,14 @@ rough_crop <- function(img, thresh, invert, pad) {
 grid_angle <- function(img, rough, range, step) {
 
   # Apply rough rotate
-  rotated  <- rotate(img, rough)
-  small <- fillHull(dilate(resize(rotated, h = 200), makeBrush(11)))
+  rotated <- EBImage::rotate(img, rough)
+  small <- EBImage::fillHull(EBImage::dilate(EBImage::resize(rotated, h = 200), EBImage::makeBrush(11)))
 
   # Determine rough rotation angle
   range <- seq(-range / 2, range / 2, by = step)
   variance <- sapply(range, function(angle) {
     #sum(rowSums(rotate(small, angle))^2)
-    var(rowSums(rotate(small, angle)))
+    var(rowSums(EBImage::rotate(small, angle)))
   })
 
   #angle <- range[which.min(variance)]
@@ -272,16 +271,16 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
   crap <-
     feat %>%
     filter_(~
-              area  > mean(area) + (3 * mad(area)) |
-              area  < 10 |
-              eccen > 0.8 |
-              ndist > mean(ndist) + (3 * mad(ndist))
+      area  > mean(area) + (3 * mad(area)) |
+      area  < 10 |
+      eccen > 0.8 |
+      ndist > mean(ndist) + (3 * mad(ndist))
     )
   clean <- EBImage::rmObjects(obj, crap$obj) > 0
 
   # Determine rotation angle and rotate plate
   angle <- grid_angle(clean, rotate, range = range, step = step)
-  rotated <- rotate(clean, angle)
+  rotated <- EBImage::rotate(clean, angle)
 
   # Split objects that cross rough grid lines
   cols <- grid_breaks(rotated, 'col', thresh = 0.1)
@@ -297,10 +296,10 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
   ) %>%
     mutate_(
       # Limit edges if they excede dimensions of image after padding
-      fine_left  = ~ifelse(left < 1, 1, left),
-      fine_right = ~ifelse(right > nrow(rotated), nrow(rotated), right),
-      fine_top   = ~ifelse(top < 1, 1, top),
-      fine_bot   = ~ifelse(bot > ncol(rotated), ncol(rotated), bot)
+      fine_l = ~ifelse(left < 1, 1, left),
+      fine_r = ~ifelse(right > nrow(rotated), nrow(rotated), right),
+      fine_t = ~ifelse(top < 1, 1, top),
+      fine_b = ~ifelse(bot > ncol(rotated), ncol(rotated), bot)
     ) %>%
     select_(~rotate, ~matches('fine'))
 }
@@ -465,21 +464,22 @@ read_greyscale <- function(path, invert = FALSE) {
   if (EBImage::colorMode(img)) {
     img <- EBImage::channel(img, 'luminance')
   }
+  img <- EBImage::imageData(img)
   if (invert) img <- 1 - img
   return(img)
 }
 
 
-# Read screenmill-plates.csv
+# Read screenmill-annotations.csv
 #' @importFrom readr read_csv cols
-screenmill_plates <- function(path) {
+screenmill_annotations <- function(path) {
 
   df <-
     path %>%
     read_csv(
       col_types =
         cols(  # Enforce types for manually entered plate annotations
-          date = 'c', file = 'c', crop_template = 'c', group = 'i', position = 'i',
+          date = 'c', file = 'c', template = 'c', group = 'i', position = 'i',
           strain_collection_id = 'c', plate = 'i', query_id = 'c', treatment_id = 'c',
           media_id = 'c', temperature = 'n', time_series = 'c', timepoint = 'i',
           start = 'c', end = 'c', owner = 'c', email = 'c'
@@ -498,23 +498,6 @@ screenmill_plates <- function(path) {
       )
     )
   }
-
-  # Record whether plates have been calibrated/cropped based on available cols
-  attr(df, 'cropped') <-
-    df %>%
-    has_name('img_crop')
-  attr(df, 'calibrated') <-
-    df %>%
-    has_name(
-      c('plate_row', 'plate_col', 'x_plate', 'y_plate', 'left', 'right',
-        'top', 'bot', 'rotate', 'fine_left', 'fine_right', 'fine_top',
-        'fine_bot')
-    ) %>%
-    all
-  attr(df, 'annotations') <-
-    c('date', 'file', 'crop_template', 'group', 'position', 'strain_collection_id',
-      'plate', 'query_id', 'treatment_id', 'media_id', 'temperature',
-      'time_series', 'timepoint', 'start', 'end', 'owner', 'email')
 
   return(df)
 }
