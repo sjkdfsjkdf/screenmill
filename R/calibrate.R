@@ -97,7 +97,7 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
     positions,
     MoreArgs = list(thresh, invert, rough_pad, fine_pad, rotate, range, step, display, crp_path, grd_path)
   )
-  message('Finished calibration in', format(round(Sys.time() - time, 2)))
+  message('Finished calibration in ', format(round(Sys.time() - time, 2)))
   return(invisible(dir))
 }
 
