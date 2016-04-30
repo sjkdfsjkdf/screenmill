@@ -59,8 +59,8 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
   stopifnot(
     is.string(dir), is.dir(dir), is.number(rotate), is.number(range),
     is.number(step), is.number(thresh), is.flag(invert), is.flag(display),
-    is.flag(overwrite), is.numeric(rough_pad) && length(rough_pad) == 4,
-    is.numeric(fine_pad)  && length(fine_pad)  == 4
+    is.flag(overwrite), is.numeric(rough_pad), length(rough_pad) == 4,
+    is.numeric(fine_pad), length(fine_pad) == 4
   )
 
   # Clean trailing slash from directory input
@@ -97,7 +97,7 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
     positions,
     MoreArgs = list(thresh, invert, rough_pad, fine_pad, rotate, range, step, display, crp_path, grd_path)
   )
-  message('Finished in ', format(round(Sys.time() - time, 2)))
+  message('Finished calibration in', format(round(Sys.time() - time, 2)))
   return(invisible(dir))
 }
 
@@ -125,14 +125,15 @@ calibrate_template <- function(template, positions, thresh, invert, rough_pad,
                                fine_pad, rotate, range, step, display, crp, grd) {
 
   # Read image in greyscale format
-  message('Calibrating ', basename(template), ' ...')
+  #message('Calibrating ', basename(template), ' ...')
+  cat('\r', basename(template), ': reading image', sep = '')
   img <- read_greyscale(template)
 
   # Determine rough crop coordinates
   rough <- rough_crop(img, thresh, invert, rough_pad) %>% mutate_(template = ~basename(template))
 
   # Message about unannotated positions
-  if (nrow(rough) > length(positions)) message('Keeping positions (', paste(positions, collapse = ', '), ') of ', nrow(rough), ' available.')
+  if (nrow(rough) > length(positions)) warning('For ', basename(template), ', keeping positions (', paste(positions, collapse = ', '), ') of ', nrow(rough), ' available.')
 
   # Display rough cropped images in browser if desired
   if (display) display_rough_crop(img, rough, 'red')
@@ -141,22 +142,24 @@ calibrate_template <- function(template, positions, thresh, invert, rough_pad,
   plates <- lapply(positions, function(p) with(rough, img[ rough_l[p]:rough_r[p], rough_t[p]:rough_b[p] ]))
 
   # Determine fine crop coordinates
-  message('Cropping plates ...')
+  #message('Cropping plates ...')
+  clear_console()
   progress <- progress_estimated(length(positions))
   fine <-
     lapply(positions, function(p) {
-      progress$tick()$print()
+      progress$tick()$print(); cat('\r', basename(template), ': cropping |', sep = '')
       fine_crop(plates[[p]], rotate, range, step, fine_pad, invert) %>%
         mutate(template = basename(template), position = p)
     }) %>%
     bind_rows
 
   # Determine grid coordinates
-  message('Locating colonies ...')
+  #message('Locating colonies ...')
+  clear_console()
   progress <- progress_estimated(length(positions))
   grid <-
     lapply(positions, function(p) {
-      progress$tick()$print()
+      progress$tick()$print(); cat('\r', basename(template), ': gridding |', sep = '')
       plate <- plates[[p]]
       if (invert) plate <- 1 - plate
       rotated <- EBImage::rotate(plate, fine$rotate[p])
@@ -187,6 +190,7 @@ calibrate_template <- function(template, positions, thresh, invert, rough_pad,
   # Write results to file
   write_csv(crop, crp, append = file.exists(crp))
   write_csv(grid, grd, append = file.exists(grd))
+  clear_console()
 }
 
 
@@ -314,6 +318,12 @@ locate_grid <- function(img, radius = 0.9) {
   return(selection %>% select(colony_row, colony_col, x, y, l, r, t, b, background))
 }
 
+
+clear_console <- function() {
+  utils::flush.console()
+  cat('\r', rep(' ', getOption('width') - 1), sep = '')
+  utils::flush.console()
+}
 
 # ---- Display Calibration: TODO ----------------------------------------------
 # Display crop calibration
