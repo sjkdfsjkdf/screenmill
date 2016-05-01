@@ -65,9 +65,9 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
 
   # Clean trailing slash from directory input
   dir <- gsub('/$', '', dir)
-  plt_path <- paste(dir, 'screenmill-annotations.csv', sep = '/')
-  crp_path <- paste(dir, 'screenmill-calibration-crop.csv', sep = '/')
-  grd_path <- paste(dir, 'screenmill-calibration-grid.csv', sep = '/')
+  plt_path <- file.path(dir, 'screenmill-annotations.csv')
+  crp_path <- file.path(dir, 'screenmill-calibration-crop.csv')
+  grd_path <- file.path(dir, 'screenmill-calibration-grid.csv')
 
   # Stop if plates have not yet been annotated
   if (!file.exists(plt_path)) stop('Could not find ', plt_path, '. Please annotate plates before cropping. See ?annotate for more details.')
