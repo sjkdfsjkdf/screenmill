@@ -10,22 +10,8 @@ vignette: >
   \usepackage[utf8]{inputenc}
 ---
 
-<!--- Instructions:
-1. Copy this source to a new R markdown file.
-2. Change the settings under "Setup and Requirements" as necessary.
-3. Review the code to make sure the manipulations are appropriate for your experiment.
-    - Should the edge colonies be excluded? 
-      (they should be excluded for collections with a his border)
-    - Should the position normalization be applied? 
-      (typically not for plates with many slow growing strains)
-4. Render the R markdown.
-5. Check "Final Review"
-    - Check for any warnings under tests. Have a new test? Submit a pull request!
-    - Review plate images. (not yet implemented)
---->
-
 ```{r include = FALSE}
-knitr::opts_chunk$set(message = F)
+knitr::opts_chunk$set(message = F, eval = F)
 ```
 
 # Setup and Requirements

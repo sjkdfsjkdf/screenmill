@@ -6,7 +6,7 @@
 using namespace Rcpp;
 
 // measureColonies
-NumericVector measureColonies(NumericMatrix img, NumericVector l, NumericVector r, NumericVector t, NumericVector b, NumericVector bg);
+List measureColonies(NumericMatrix img, NumericVector l, NumericVector r, NumericVector t, NumericVector b, NumericVector bg);
 RcppExport SEXP screenmill_measureColonies(SEXP imgSEXP, SEXP lSEXP, SEXP rSEXP, SEXP tSEXP, SEXP bSEXP, SEXP bgSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;

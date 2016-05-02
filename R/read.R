@@ -151,12 +151,12 @@ read_dr <- function(path, match = 'Query\tCondition\tPlate #\tRow\tColumn') {
 #' @param screens Path to screens metadata CSV
 #' @param plates Path to plates metadata CSV
 #'
-#' @importFrom data.table fread
+#' @importFrom readr read_csv
 #' @export
 
 read_metadata <- function(screens, plates) {
-  scr <- fread(screens, data.table = FALSE)
-  plt <- fread(plates, data.table = FALSE)
+  scr <- read_csv(screens)
+  plt <- read_csv(plates)
 
   left_join(plt, scr) %>%
     mutate_(

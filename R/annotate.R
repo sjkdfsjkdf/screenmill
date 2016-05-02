@@ -30,24 +30,25 @@
 #' To quit without saving, just press "Cancel".
 #'
 #' @importFrom readr write_csv read_csv cols_only
+#' @importFrom stringr str_pad
 #' @importFrom rhandsontable rhandsontable hot_col hot_cols hot_validate_numeric
 #' hot_table renderRHandsontable rHandsontableOutput
 #' @export
 
-annotate_plates <- function(dir = NULL,
-                            queries = getOption('screenmill.queries'),
-                            strain_collections = getOption('screenmill.strain_collections'),
-                            media = getOption('screenmill.media'),
-                            treatments = getOption('screenmill.treatments'),
-                            temperatures = c(23, 27, 30, 33, 37),
-                            overwrite = FALSE) {
+annotate <- function(dir = NULL,
+                     queries = getOption('screenmill.queries'),
+                     strain_collections = getOption('screenmill.strain_collections'),
+                     media = getOption('screenmill.media'),
+                     treatments = getOption('screenmill.treatments'),
+                     temperatures = c(23, 27, 30, 33, 37),
+                     overwrite = FALSE) {
   # ---- Setup ----
   if (is.null(dir)) {
     message('Choose a file in the directory of images you wish to process.')
     dir <- dirname(file.choose())
   }
   dir <- gsub('/$', '', dir)
-  target <- paste(dir, 'screenmill-plates.csv', sep = '/')
+  target <- paste(dir, 'screenmill-annotations.csv', sep = '/')
 
   # Get information about images - path, file, standard, time_series, time
   images <- image_data(dir)
@@ -63,15 +64,15 @@ annotate_plates <- function(dir = NULL,
     # Table 1: Image groups keys | file, time
     vars$tbl1 <- read_csv('file,time,group\n', col_types = 'cci')
 
-    # Table 2: Group annotation keys | group, crop_template
-    vars$tbl2 <- read_csv('group,crop_template,start,positions,temperature\n', col_types = 'iccin')
+    # Table 2: Group annotation keys | group, template
+    vars$tbl2 <- read_csv('group,template,start,positions,temperature\n', col_types = 'iccin')
 
-    # Table 3: Plate annotation keys | group, crop_template, position
-    vars$tbl3 <- read_csv('group,crop_template,position,strain_collection_id,plate,query_id,treatment_id,media_id\n', col_types = 'iciciccc')
+    # Table 3: Plate annotation keys | group, template, position
+    vars$tbl3 <- read_csv('group,template,position,strain_collection_id,plate,query_id,treatment_id,media_id\n', col_types = 'iciciccc')
   } else {
     # Restore variables
     vars$tbl <-
-      screenmill_plates(target) %>%
+      screenmill_annotations(target) %>%
       group_by(file, group) %>%
       mutate(positions = n(), time = end) %>%
       ungroup
@@ -91,12 +92,12 @@ annotate_plates <- function(dir = NULL,
       distinct
     vars$tbl2  <-
       (vars$tbl) %>%
-      select(group, crop_template, start, positions, temperature) %>%
+      select(group, template, start, positions, temperature) %>%
       distinct
     vars$tbl3 <-
       (vars$tbl) %>%
       select(
-        group, crop_template, position, strain_collection_id, plate, query_id,
+        group, template, position, strain_collection_id, plate, query_id,
         treatment_id, media_id
       ) %>%
       distinct
@@ -203,7 +204,7 @@ annotate_plates <- function(dir = NULL,
     })
 
 
-    # Table 2: Group annotation keys | group, crop_template -------------------
+    # Table 2: Group annotation keys | group, template -------------------
     tbl2 <- reactive({
       if (reset$tbl2) {
         vars$tbl2 <-
@@ -211,20 +212,20 @@ annotate_plates <- function(dir = NULL,
           group_by(group) %>%
           mutate(
             Ptime = as.POSIXct(time),
-            crop_template = file[which.max(Ptime)],
+            template = file[which.max(Ptime)],
             start = min(Ptime) %>% as.character
           ) %>%
           ungroup %>%
-          select(group, crop_template, start) %>%
+          select(group, template, start) %>%
           distinct %>%
-          left_join(rename(vars$tbl2, r_start = start), by = c('group', 'crop_template')) %>%
+          left_join(rename(vars$tbl2, r_start = start), by = c('group', 'template')) %>%
           mutate(
             start       = ifelse(is.na(r_start), start, r_start),
             positions   = ifelse(is.na(positions), 1L, positions),
             temperature = ifelse(is.na(temperature), 30, temperature)
           ) %>%
           arrange(group) %>%
-          select(group, crop_template, start, positions, temperature)
+          select(group, template, start, positions, temperature)
         vars$tbl2
       } else {
         vars$tbl2 <- hot_to_r(input$tbl2) %>% filter(complete.cases(.))
@@ -235,7 +236,7 @@ annotate_plates <- function(dir = NULL,
     output$tbl2 <- renderRHandsontable({
       tbl2() %>%
         rhandsontable(height = 23 * nrow(.) + 200) %>%
-        hot_col(c('group', 'crop_template'), readOnly = T) %>%
+        hot_col(c('group', 'template'), readOnly = T) %>%
         hot_col(
           'start',
           # Highlight cell in Red if value doesn't match ~YYYY-MM-DD hh:mm:ss
@@ -253,16 +254,16 @@ annotate_plates <- function(dir = NULL,
     })
 
 
-    # Table 3: Plate annotation keys | group, crop_template, position ---------
+    # Table 3: Plate annotation keys | group, template, position ---------
     tbl3 <- reactive({
       if (reset$tbl3) {
         vars$tbl3 <-
           tbl2() %>%
-          select(group, crop_template, positions) %>%
-          group_by(group, crop_template) %>%
+          select(group, template, positions) %>%
+          group_by(group, template) %>%
           do(data_frame(position = 1:.$positions[1])) %>%
           ungroup %>%
-          left_join(vars$tbl3, by = c('group', 'crop_template', 'position')) %>%
+          left_join(vars$tbl3, by = c('group', 'template', 'position')) %>%
           mutate_each(funs(ifelse(is.na(.), '', .)))
         vars$tbl3
       } else {
@@ -275,7 +276,7 @@ annotate_plates <- function(dir = NULL,
       tbl3() %>%
         rhandsontable(height = 23 * nrow(.) + 200) %>%
         hot_validate_numeric('plate') %>%
-        hot_col(c('group', 'crop_template', 'position'), readOnly = T) %>%
+        hot_col(c('group', 'template', 'position'), readOnly = T) %>%
         hot_col('query_id', type = 'autocomplete', source = queries$query_id) %>%
         hot_col('strain_collection_id', type = 'autocomplete', source = strain_collections$strain_collection_id) %>%
 
@@ -298,7 +299,7 @@ annotate_plates <- function(dir = NULL,
         select(file) %>%
         left_join(tbl1(), by = 'file') %>%
         left_join(tbl2(), by = 'group') %>%
-        left_join(tbl3(), by = c('group', 'crop_template')) %>%
+        left_join(tbl3(), by = c('group', 'template')) %>%
         mutate_each(funs(ifelse(. == '', NA, .))) %>% # replace empty string with NA
         mutate(
           date = as.Date(start),
@@ -307,11 +308,17 @@ annotate_plates <- function(dir = NULL,
           time_series = (input$ts)
         ) %>%
         group_by(date, group, position) %>%
-        mutate(timepoint = order(as.POSIXct(time))) %>%
+        mutate(
+          timepoint = order(as.POSIXct(time)),
+          grp3 = stringr::str_pad(group,     width = 3, side = 'left', pad = 0),
+          pos3 = stringr::str_pad(position,  width = 3, side = 'left', pad = 0),
+          tim3 = stringr::str_pad(timepoint, width = 3, side = 'left', pad = 0),
+          plate_id = paste(date, grp3, pos3, tim3, sep = '-')
+        ) %>%
         select(
-          date, file, crop_template, group, position, strain_collection_id,
-          plate, query_id, treatment_id, media_id, temperature, time_series,
-          timepoint, start, end = time, owner, email
+          plate_id, date, group, position, timepoint, file, template,
+          strain_collection_id, plate, query_id, treatment_id, media_id,
+          temperature, time_series, start, end = time, owner, email
         ) %>%
         write_csv(target)
 
