@@ -125,41 +125,31 @@ calibrate_template <- function(template, positions, thresh, invert, rough_pad,
                                fine_pad, rotate, range, step, display, crp, grd) {
 
   # Read image in greyscale format
-  #message('Calibrating ', basename(template), ' ...')
-  cat('\r', basename(template), ': reading image', sep = '')
+  message(basename(template), ': reading image and cropping plates')
   img <- read_greyscale(template)
 
-  # Determine rough crop coordinates
+  # Determine rough crop coordinates and apply to this image
   rough <- rough_crop(img, thresh, invert, rough_pad) %>% mutate_(template = ~basename(template))
-
-  # Message about unannotated positions
   if (nrow(rough) > length(positions)) warning('For ', basename(template), ', keeping positions (', paste(positions, collapse = ', '), ') of ', nrow(rough), ' available.')
-
-  # Display rough cropped images in browser if desired
   if (display) display_rough_crop(img, rough, 'red')
-
-  # Rough crop each plate
   plates <- lapply(positions, function(p) with(rough, img[ rough_l[p]:rough_r[p], rough_t[p]:rough_b[p] ]))
 
   # Determine fine crop coordinates
-  #message('Cropping plates ...')
-  clear_console()
   progress <- progress_estimated(length(positions))
   fine <-
     lapply(positions, function(p) {
-      progress$tick()$print(); cat('\r', basename(template), ': cropping |', sep = '')
+      progress$tick()$print()
       fine_crop(plates[[p]], rotate, range, step, fine_pad, invert) %>%
         mutate(template = basename(template), position = p)
     }) %>%
     bind_rows
 
   # Determine grid coordinates
-  #message('Locating colonies ...')
-  clear_console()
+  message(basename(template), ': locating colony grid')
   progress <- progress_estimated(length(positions))
   grid <-
     lapply(positions, function(p) {
-      progress$tick()$print(); cat('\r', basename(template), ': gridding |', sep = '')
+      progress$tick()$print()
       plate <- plates[[p]]
       if (invert) plate <- 1 - plate
       rotated <- EBImage::rotate(plate, fine$rotate[p])
@@ -175,7 +165,6 @@ calibrate_template <- function(template, positions, thresh, invert, rough_pad,
         result <- mutate_(result, template = ~basename(template), position = ~p)
       }
 
-      # Display plate if desired
       if (display) display_plate(cropped, result, template, p, text.color = 'red', grid.color = 'blue')
 
       return(result)
@@ -184,13 +173,14 @@ calibrate_template <- function(template, positions, thresh, invert, rough_pad,
     select_(~template, ~position, ~everything())
 
   # Combine rough and fine crop coordinates
-  crop <- left_join(rough, fine, by = c('template', 'position')) %>%
+  crop <-
+    left_join(rough, fine, by = c('template', 'position')) %>%
+    mutate_(invert = ~invert) %>%
     select_(~template, ~position, ~everything())
 
   # Write results to file
   write_csv(crop, crp, append = file.exists(crp))
   write_csv(grid, grd, append = file.exists(grd))
-  clear_console()
 }
 
 
@@ -316,13 +306,6 @@ locate_grid <- function(img, radius = 0.9) {
     predict
 
   return(selection %>% select(colony_row, colony_col, x, y, l, r, t, b, background))
-}
-
-
-clear_console <- function() {
-  utils::flush.console()
-  cat('\r', rep(' ', getOption('width') - 1), sep = '')
-  utils::flush.console()
 }
 
 # ---- Display Calibration: TODO ----------------------------------------------
