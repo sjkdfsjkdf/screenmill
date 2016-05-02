@@ -30,6 +30,7 @@
 #' To quit without saving, just press "Cancel".
 #'
 #' @importFrom readr write_csv read_csv cols_only
+#' @importFrom stringr str_pad
 #' @importFrom rhandsontable rhandsontable hot_col hot_cols hot_validate_numeric
 #' hot_table renderRHandsontable rHandsontableOutput
 #' @export
@@ -307,11 +308,17 @@ annotate <- function(dir = NULL,
           time_series = (input$ts)
         ) %>%
         group_by(date, group, position) %>%
-        mutate(timepoint = order(as.POSIXct(time))) %>%
+        mutate(
+          timepoint = order(as.POSIXct(time)),
+          grp3 = stringr::str_pad(group,     width = 3, side = 'left', pad = 0),
+          pos3 = stringr::str_pad(position,  width = 3, side = 'left', pad = 0),
+          tim3 = stringr::str_pad(timepoint, width = 3, side = 'left', pad = 0),
+          plate_id = paste(date, grp3, pos3, tim3, sep = '-')
+        ) %>%
         select(
-          date, file, template, group, position, strain_collection_id,
-          plate, query_id, treatment_id, media_id, temperature, time_series,
-          timepoint, start, end = time, owner, email
+          plate_id, date, group, position, timepoint, file, template,
+          strain_collection_id, plate, query_id, treatment_id, media_id,
+          temperature, time_series, start, end = time, owner, email
         ) %>%
         write_csv(target)
 
