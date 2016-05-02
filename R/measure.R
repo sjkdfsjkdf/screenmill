@@ -1,152 +1,109 @@
-# ---- Crop -------------------------------------------------------------------
-#' Crop plates
-#'
-#' Crop plates from images.
-#'
-#' @param dir Directory of images to crop.
-#' @param target Target directory for saving images.
-#' @param overwrite Should existing cropped images be overwritten?
-#' Defaults to \code{FALSE}.
-#'
-#' @importFrom stringr str_pad
+#' @importFrom readr read_csv write_csv
+#' @importFrom parallel mclapply detectCores
 #' @export
 
-crop <- function(dir, target = 'cropped', overwrite = FALSE) {
+measure <- function(dir, overwrite = F, save.plates = F, save.colonies = 'rds') {
 
-  # Find screenmill-annotations file in directory
+  # Validate input
+  stopifnot(
+    is.string(dir), is.dir(dir), is.flag(overwrite)
+  )
+
+  # Clean trailing slash from directory input
   dir <- gsub('/$', '', dir)
-  target <- gsub('/$|^\\./', '', target)
-  full_target <- paste0(dir, '/', target)
-  if (is.dir(dir)) {
-    path <- paste(dir, 'screenmill-annotations.csv', sep = '/')
+  ano_path <- file.path(dir, 'screenmill-annotations.csv', fsep = '/')
+  crp_path <- file.path(dir, 'screenmill-calibration-crop.csv', fsep = '/')
+  grd_path <- file.path(dir, 'screenmill-calibration-grid.csv', fsep = '/')
+  target   <- file.path(dir, 'screenmill-measurments.csv', fsep = '/')
+
+  # Stop if plates have not yet been annotated
+  if (!(file.exists(crp_path) && file.exists(grd_path))) stop('Could not find calibration files. Please annotate and calibrate before measuring.\nSee ?annotate and ?calibrate for more details.')
+
+  if (!overwrite && file.exists(target)) {
+    # Exit if already calibratd and no overwrite
+    message('This batch has already been measured Set "overwrite = TRUE" to re-measure.')
+    return(invisible(dir))
   } else {
-    path <- dir
-  }
-  if (!file.exists(path)) {
-    stop('Could not find ', path, '. Please annotate and calibrate ',
-         'plates before cropping. See ?annotate and ?calibrate for ',
-         'more details.')
+    # Remove pre-existing files
+    if (file.exists(target)) file.remove(target)
   }
 
-  # Read screenmill plate annotations
-  screenmill <- screenmill_annotations(path)
-
-  # Check current status of screenmill
-  if(!attr(screenmill, 'calibrated')) {
-    stop('Cropping has not been calibrated. See ?calibrate_crop for more details.')
-  }
-  if (attr(screenmill, 'cropped') && !overwrite) {
-    message('Images have already been cropped. Set "overwrite = TRUE" to re-crop.')
-    return(invisible(dir))
-  }
-
-  message('Saving cropped images to ', full_target)
-  if (!dir.exists(full_target)) dir.create(full_target)
-
-  data <-
-    screenmill %>%
-    mutate(
-      grp3 = stringr::str_pad(group,     width = 3, side = 'left', pad = 0),
-      pos3 = stringr::str_pad(position,  width = 3, side = 'left', pad = 0),
-      tim3 = stringr::str_pad(timepoint, width = 3, side = 'left', pad = 0),
-      img_crop   = paste0(target, '/', paste(date, grp3, pos3, tim3, sep = '-'), '.tif')
-    ) %>%
-    select(-grp3, -pos3, -tim3)
-
-  files <- paste0(dir, '/', unique(data$file))
-  progress <- progress_estimated(2 * length(files))
-  for (file in files) {
-    progress$tick()$print()
-
-    # Get data for file
-    coords <- data[which(data$file == basename(file)), ]
-
-    # Read as greyscale image
-    img <- EBImage::readImage(file)
-    if (EBImage::colorMode(img)) {
-      img <- EBImage::channel(img, 'luminance')
-    }
-
-    img <- imageData(img)
-
-    # Apply Crop calibration
-    cores <- max(2L, detectCores(), na.rm = T)
-    mclapply(1:nrow(coords), function(p) {
-      rough   <- with(coords, img[ left[p]:right[p], top[p]:bot[p] ])
-      rotated <- rotate(rough, coords$rotate[p])
-      fine    <- with(coords, rotated[ fine_left[p]:fine_right[p], fine_top[p]:fine_bot[p] ])
-      EBImage::writeImage(
-        fine,
-        paste0(dir, '/', coords$img_crop[p]),
-        type = 'tiff',
-        compression = 'none',
-        bits.per.sample = 8L
-      )
-    }, mc.cores = cores)
-    progress$tick()$print()
-  }
-
-  write_csv(data, path)
-  message('Finished!')
-  return(invisible(dir))
-}
-
-
-#' @importFrom parallel mclapply
-#' @export
-
-measure_colonies <- function(dir, invert = TRUE, overwrite = FALSE) {
-
-  # ---- Validate inputs ----
-  dir <- gsub('/$', '', dir)  # clean trailing slash
-  stopifnot(is.dir(dir), is.flag(invert), is.flag(overwrite))
-
-  plates_path <- paste(dir, 'screenmill-annotations.csv', sep = '/')
-  grid_path   <- paste(dir, 'screenmill-grid.csv', sep = '/')
-  target      <- paste(dir, 'screenmill-measurements.csv', sep = '/')
-
-  if (!file.exists(plates_path)) stop('Could not find ', plate_path, '. Please annotate and crop plates before calibrating grid (see ?annotate_plates, ?calibrate_crop, ?crop).')
-  if (!file.exists(grid_path)) stop('Could not find ', grid_path, '. Please calibrate grid before measuring colonies (see ?calibrate_grid).')
-  if (file.exists(target) && !overwrite) {
-    message('Colonies have already been measured. Set "overwrite = TRUE" to re-measure.')
-    return(invisible(dir))
-  }
-
-  # ---- Read screenmill tables ----
+  # Read metadata
+  annot <-
+    read_csv(ano_path) %>% mutate(path = file.path(dir, file, fsep = '/')) %>%
+    select(path, file, plate_id, template, position)
+  paths <- unique(annot$path)
   plates <-
-    screenmill_annotations(plates_path) %>%
-    select(img_crop, grid_template) %>%
-    mutate(path = paste(dir, img_crop, sep = '/'))
-  grids <- read_csv(grid_path)
+    left_join(annot, read_csv(crp_path), by = c('template', 'position')) %>%
+    select(path, plate_id, starts_with('rough'), rotate, starts_with('fine'), invert)
+  grids  <-
+    left_join(annot, read_csv(grd_path), by = c('template', 'position')) %>%
+    group_by(plate_id) %>%
+    mutate(colony_num = 1:n()) %>%
+    arrange(plate_id, colony_num) %>%
+    select(plate_id, colony_row, colony_col, colony_num, l, r, t, b, background) %>%
+    ungroup
 
-  # ---- Track progress and keep user informed ----
-  cores <- max(2L, detectCores(), na.rm = T)
-  message('Measuring ', nrow(plates), ' plates ("Patience is bitter, but its fruit are sweet") ...')
+  # Record start time
   time <- Sys.time()
 
-  # ---- Measure grid locations for each cropped plate ----
-  result <-
-    mclapply(1:nrow(plates), measure_plate, plates, grids, invert, mc.cores = cores) %>%
-    bind_rows
+  # For each image
+  cores <- max(1, detectCores(), na.rm = T)
+  lapply(paths, function(pth) {
 
-  # ---- Write result ----
-  message('Writing to ', target, ' ...')
-  write_csv(result, target)
-  message('Finished in ', format(round(Sys.time() - time, 2)))
+    img <- read_greyscale(pth)
+    coords <- filter(plates, path == pth)
+    plate_ids <- unique(coords$plate_id)
+
+    # For each plate within this image
+    measurements <-
+      mclapply(plate_ids, function(p) {
+
+        # Crop plates
+        crop    <- filter(plates, plate_id == p)
+        rough   <- with(crop, img[ rough_l:rough_r, rough_t:rough_b ])
+        rotated <- EBImage::rotate(rough, crop$rotate)
+        fine    <- with(crop, rotated[ fine_l:fine_r, fine_t:fine_b ])
+        if (crop$invert) fine <- 1 - fine
+
+        # Save cropped plate in desired format
+        if (any(grepl('rds', save.plates, ignore.case = T))) {
+          target <- paste0(dir, '/plates/')
+          if (!dir.exists(target)) dir.create(target)
+          saveRDS(fine, paste0(target, p, '.rds'))
+        }
+        if (any(grepl('tif', save.plates, ignore.case = T))) {
+          target <- paste0(dir, '/plates/')
+          if (!dir.exists(target)) dir.create(target)
+          EBImage::writeImage(
+            fine,
+            paste0(target, p, '.tif'),
+            type = 'tiff',
+            compression = 'none',
+            bits.per.sample = 8L
+          )
+        }
+
+        # Measure colonies
+        grid      <- filter(grids, plate_id == p)
+        result    <- with(grid, measureColonies(fine, l, r, t, b, background))
+        grid$size <- result$measurements
+
+        # Save colonies in desired format
+        if (any(grepl('rds', save.colonies, ignore.case = T))) {
+          target <- paste0(dir, '/colonies/')
+          if (!dir.exists(target)) dir.create(target)
+          saveRDS(result$colonies, paste0(target, p, '.rds'))
+        }
+
+        return(select(grid, plate_id, colony_row, colony_col, colony_num, size))
+      }, mc.cores = cores) %>%
+      bind_rows
+
+    write_csv(measurements, target, append = file.exists(target))
+  })
+
+  message('Finished measuring in ', format(round(Sys.time() - time, 2)))
   return(invisible(dir))
 }
 
-
-measure_plate <- function(i, plates, grids, inv) {
-  img   <- imageData(read_greyscale(plates$path[i], invert = inv))
-  tmp_i <- plates$grid_template[i]
-  img_i <- plates$img_crop[i]
-  grid  <- filter(grids, grid_template == tmp_i) %>% select(-grid_template)
-
-  grid %>%
-    mutate(
-      img_crop = img_i,
-      size = measureColonies(img, l, r, t, b, background)
-    ) %>%
-    select(img_crop, everything())
-}
