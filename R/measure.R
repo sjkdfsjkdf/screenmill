@@ -48,9 +48,12 @@ measure <- function(dir, overwrite = F, save.plates = F, save.colonies = 'rds') 
   time <- Sys.time()
 
   # For each image
+  message('Measuring ', length(paths), ' images')
+  progress <- progress_estimated(length(paths))
   cores <- ifelse(.Platform$OS.type == 'windows', 1, max(1, detectCores(), na.rm = T))
   lapply(paths, function(pth) {
 
+    progress$tick()$print()
     img <- read_greyscale(pth)
     coords <- filter(plates, path == pth)
     plate_ids <- unique(coords$plate_id)
