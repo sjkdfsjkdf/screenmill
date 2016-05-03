@@ -10,7 +10,7 @@ annotate(dir = NULL, queries = getOption("screenmill.queries"),
   strains = getOption("screenmill.strains"),
   media = getOption("screenmill.media"),
   treatments = getOption("screenmill.treatments"), temperatures = c(23, 27,
-  30, 33, 37), overwrite = FALSE)
+  30, 33, 37), overwrite = FALSE, update = TRUE)
 }
 \arguments{
 \item{dir}{Directory of images to process. If \code{NULL} the
