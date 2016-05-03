@@ -32,7 +32,7 @@
 #' @importFrom readr write_csv read_csv cols_only
 #' @importFrom stringr str_pad
 #' @importFrom rhandsontable rhandsontable hot_col hot_cols hot_validate_numeric
-#' hot_table renderRHandsontable rHandsontableOutput
+#' hot_table renderRHandsontable rHandsontableOutput hot_to_r
 #' @export
 
 annotate <- function(dir = NULL,

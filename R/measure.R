@@ -48,7 +48,7 @@ measure <- function(dir, overwrite = F, save.plates = F, save.colonies = 'rds') 
   time <- Sys.time()
 
   # For each image
-  cores <- max(1, detectCores(), na.rm = T)
+  cores <- ifelse(.Platform$OS.type == 'windows', 1, max(1, detectCores(), na.rm = T))
   lapply(paths, function(pth) {
 
     img <- read_greyscale(pth)
