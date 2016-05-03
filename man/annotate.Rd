@@ -6,6 +6,8 @@
 \usage{
 annotate(dir = NULL, queries = getOption("screenmill.queries"),
   strain_collections = getOption("screenmill.strain_collections"),
+  strain_collection_keys = getOption("screenmill.strain_collection_keys"),
+  strains = getOption("screenmill.strains"),
   media = getOption("screenmill.media"),
   treatments = getOption("screenmill.treatments"), temperatures = c(23, 27,
   30, 33, 37), overwrite = FALSE)
@@ -14,17 +16,17 @@ annotate(dir = NULL, queries = getOption("screenmill.queries"),
 \item{dir}{Directory of images to process. If \code{NULL} the
 user will be prompted to choose a directory.}
 
-\item{queries}{A vector, or dataframe of available queries. Uses
+\item{queries}{A dataframe of available queries. Uses
 \code{getOption('screenmill.queries')} by default (see Details).}
 
-\item{strain_collections}{A vector, or dataframe of available strain
+\item{strain_collections}{A dataframe of available strain
 collections. Uses \code{getOption('screenmill.strain_collections')}
 (see Details).}
 
-\item{media}{A vector, or dataframe of available media. Uses
+\item{media}{A dataframe of available media. Uses
 \code{getOption('screenmill.media')} by default(see Details).}
 
-\item{treatments}{A vector or dataframe of available treatments. Uses
+\item{treatments}{A dataframe of available treatments. Uses
 \code{getOption('screenmill.treatments')} by default (see Details).}
 
 \item{temperatures}{A vector of recommended temperatures.}
