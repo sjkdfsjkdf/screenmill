@@ -2,7 +2,7 @@
 #' @importFrom parallel mclapply detectCores
 #' @export
 
-measure <- function(dir, overwrite = F, save.plates = F, save.colonies = 'rds') {
+measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = 'rds') {
 
   # Validate input
   stopifnot(
