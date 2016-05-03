@@ -43,7 +43,8 @@ annotate <- function(dir = NULL,
                      media = getOption('screenmill.media'),
                      treatments = getOption('screenmill.treatments'),
                      temperatures = c(23, 27, 30, 33, 37),
-                     overwrite = FALSE) {
+                     overwrite = FALSE,
+                     update = TRUE) {
   # ---- Setup ----
   if (is.null(dir)) {
     message('Choose a file in the directory of images you wish to process.')
@@ -54,6 +55,27 @@ annotate <- function(dir = NULL,
 
   # Get information about images - path, file, standard, time_series, time
   images <- image_data(dir)
+
+  # Get known values from rothfreezer database if available
+  if (requireNamespace('rothfreezer', quietly = T)) {
+    db <- rothfreezer::src_rothfreezer()
+    if (is.null(strain_collection_keys)) {
+      strain_collection_keys <-
+        left_join(
+          tbl(db, 'strain_collections') %>% select_(~strain_collection_id:plate_control),
+          tbl(db, 'strains') %>% select_(~strain_id, ~strain_name, ~gene_id),
+          by = 'strain_id'
+        ) %>%
+        select_(~strain_collection_id, ~strain_id, ~strain_name, ~gene_id, ~plate:plate_control)
+    }
+    if (is.null(strain_collections)) strain_collections <- collect(tbl(db, 'strain_collection_info'))
+    if (is.null(queries))    queries    <- collect(tbl(db, 'queries'))
+    if (is.null(treatments)) treatments <- collect(tbl(db, 'treatments'))
+    if (is.null(media))      media      <- collect(tbl(db, 'media'))
+  }
+
+  # Check Tables
+  check_annotation_tables(strain_collections, strain_collection_keys, queries, treatments, media)
 
   # Initialize variables
   vars <- list()
@@ -82,6 +104,30 @@ annotate <- function(dir = NULL,
     # If not overwrite and everything has been annotated then exit
     if (!overwrite && all(complete.cases(vars$tbl))) {
       message('Plates have already been annotated. Set "overwrite = TRUE" to re-annotate.')
+
+      if (update) {
+        strain_collections %>%
+          filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
+          write_csv(file.path(dir, 'screenmill-collections.csv'))
+
+        queries %>%
+          filter(query_id %in% c('', vars$tbl$query_id)) %>%
+          write_csv(file.path(dir, 'screenmill-queries.csv', fsep = '/'))
+
+        treatments %>%
+          filter(treatment_id %in% c('', vars$tbl$treatment_id)) %>%
+          write_csv(file.path(dir, 'screenmill-treatments.csv', fsep = '/'))
+
+        media %>%
+          filter(media_id %in% c('', vars$tbl$media_id)) %>%
+          write_csv(file.path(dir, 'screenmill-media.csv', fsep = '/'))
+
+        strain_collection_keys %>%
+          filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
+          collect %>%
+          write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
+      }
+
       return(invisible(dir))
     }
 
@@ -104,27 +150,6 @@ annotate <- function(dir = NULL,
       ) %>%
       distinct
   }
-
-  # Get known values from rothfreezer database if available
-  if (requireNamespace('rothfreezer', quietly = T)) {
-    db <- rothfreezer::src_rothfreezer()
-    if (is.null(strain_collection_keys)) {
-      strain_collection_keys <-
-        left_join(
-          tbl(db, 'strain_collections') %>% select_(~strain_collection_id:plate_control),
-          tbl(db, 'strains') %>% select_(~strain_id, ~strain_name, ~gene_id),
-          by = 'strain_id'
-        ) %>%
-        select_(~strain_collection_id, ~strain_id, ~strain_name, ~gene_id, ~plate:plate_control)
-    }
-    if (is.null(strain_collections)) strain_collections <- collect(tbl(db, 'strain_collection_info'))
-    if (is.null(queries))    queries    <- collect(tbl(db, 'queries'))
-    if (is.null(treatments)) treatments <- collect(tbl(db, 'treatments'))
-    if (is.null(media))      media      <- collect(tbl(db, 'media'))
-  }
-
-  # Check Tables
-  check_annotation_tables(strain_collections, strain_collection_keys, queries, treatments, media)
 
   # Determine column widths as ~10-13 pixels per character
   if (!is.null(strain_collections) && !is.null(queries) && !is.null(treatments) && !is.null(media)) {
