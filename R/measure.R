@@ -39,9 +39,14 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = '
   grids  <-
     left_join(annot, read_csv(grd_path), by = c('template', 'position')) %>%
     group_by(plate_id) %>%
+    arrange(row, column, replicate) %>%
     mutate(colony_num = 1:n()) %>%
     arrange(plate_id, colony_num) %>%
-    select(plate_id, colony_row, colony_col, colony_num, l, r, t, b, background) %>%
+    select(
+      plate_id,
+      strain_collection_id, plate, row, column, replicate,
+      colony_row, colony_col, colony_num, l, r, t, b, background
+    ) %>%
     ungroup
 
   # Record start time
@@ -99,7 +104,11 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = '
           saveRDS(result$colonies, paste0(target, p, '.rds'))
         }
 
-        return(select(grid, plate_id, colony_row, colony_col, colony_num, size))
+        grid %>%
+          select(
+            plate_id, strain_collection_id, plate, row, column, replicate,
+            colony_row, colony_col, colony_num, size
+          )
       }, mc.cores = cores) %>%
       bind_rows
 
