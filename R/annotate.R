@@ -50,6 +50,7 @@ annotate <- function(dir = NULL,
     message('Choose a file in the directory of images you wish to process.')
     dir <- dirname(file.choose())
   }
+  stopifnot(is.string(dir), is.dir(dir))
   dir <- gsub('/$', '', dir)
   target <- paste(dir, 'screenmill-annotations.csv', sep = '/')
 
@@ -76,6 +77,10 @@ annotate <- function(dir = NULL,
 
   # Check Tables
   check_annotation_tables(strain_collections, strain_collection_keys, queries, treatments, media)
+
+  # Letter map to convert letters to integers
+  LETTER_map <- 1:length(LETTERS)
+  names(LETTER_map) <- LETTERS
 
   # Initialize variables
   vars <- list()
@@ -125,6 +130,14 @@ annotate <- function(dir = NULL,
         strain_collection_keys %>%
           filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
           collect %>%
+          mutate(
+            row = toupper(row),
+            row = ifelse(row %in% LETTERS, LETTER_map[row], row),
+            row = as.integer(row),
+            column = toupper(column),
+            column = ifelse(column %in% LETTERS, LETTER_map[column], column),
+            column = as.integer(column)
+          ) %>%
           write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
       }
 
@@ -362,6 +375,14 @@ annotate <- function(dir = NULL,
       strain_collection_keys %>%
         filter(strain_collection_id %in% c('', annotations$strain_collection_id)) %>%
         collect %>%
+        mutate(
+          row = toupper(row),
+          row = ifelse(row %in% LETTERS, LETTER_map[row], row),
+          row = as.integer(row),
+          column = toupper(column),
+          column = ifelse(column %in% LETTERS, LETTER_map[column], column),
+          column = as.integer(column)
+        ) %>%
         write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
 
       stopApp(invisible(dir))
