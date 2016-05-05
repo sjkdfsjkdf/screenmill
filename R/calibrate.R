@@ -47,8 +47,8 @@
 #'
 #' @export
 
-calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
-                      invert = TRUE, rough_pad = c(0, 0, 0, 0),
+calibrate <- function(dir = '.', rotate = 90, range = 6, step = 0.2,
+                      thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
                       fine_pad = c(5, 5, 5, 5), display = TRUE,
                       overwrite = FALSE) {
 
@@ -68,6 +68,7 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
   plt_path <- file.path(dir, 'screenmill-annotations.csv', fsep = '/')
   crp_path <- file.path(dir, 'screenmill-calibration-crop.csv', fsep = '/')
   grd_path <- file.path(dir, 'screenmill-calibration-grid.csv', fsep = '/')
+  key_path <- file.path(dir, 'screenmill-collection-keys.csv', fsep = '/')
 
   # Stop if plates have not yet been annotated
   if (!file.exists(plt_path)) stop('Could not find ', plt_path, '. Please annotate plates before cropping. See ?annotate for more details.')
@@ -83,20 +84,27 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
   }
 
   # Get paths to templates relative to dir, and corresponding plate positions
-  annotation <- distinct(transmute(read_csv(plt_path), template = paste(dir, template, sep = '/'), position = position))
+  annotation <-
+    read_csv(plt_path) %>%
+    select(template, position, strain_collection_id, plate) %>%
+    mutate(template = paste(dir, template, sep = '/')) %>%
+    distinct
+
+  key <- read_csv(key_path)
+
   templates <- unique(annotation$template)
-  positions <- with(annotation, split(position, template))
 
   # Record start time
   time <- Sys.time()
 
   # Calibrate each template by iterating through templates and positions
-  mapply(
-    calibrate_template,
-    templates,
-    positions,
-    MoreArgs = list(thresh, invert, rough_pad, fine_pad, rotate, range, step, display, crp_path, grd_path)
+  lapply(
+    templates, calibrate_template,
+    # Arguments
+    annotation, key, thresh, invert, rough_pad, fine_pad, rotate, range, step,
+    display, crp_path, grd_path
   )
+
   message('Finished calibration in ', format(round(Sys.time() - time, 2)))
   return(invisible(dir))
 }
@@ -107,7 +115,7 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
 # Calibrate a single template image
 #
 # @param template path to template image
-# @param positions integer vector of plate positions
+# @param annotation table of plate annotations
 # @param thresh ? TODO currently used to detect rough crop locations
 # @param invert Should the image be inverted
 # @param rough_pad Padding around rough crop
@@ -121,56 +129,125 @@ calibrate <- function(dir, rotate = 90, range = 6, step = 0.2, thresh = 0.03,
 #
 #' @importFrom readr write_csv
 
-calibrate_template <- function(template, positions, thresh, invert, rough_pad,
+calibrate_template <- function(template, annotation, key, thresh, invert, rough_pad,
                                fine_pad, rotate, range, step, display, crp, grd) {
 
   # Read image in greyscale format
   message(basename(template), ': reading image and cropping plates')
-  img <- read_greyscale(template)
+  img <- screenmill:::read_greyscale(template)
+
+  # Filter annotation data for this template
+  anno <- annotation[which(annotation$template == template), ]
 
   # Determine rough crop coordinates and apply to this image
-  rough <- rough_crop(img, thresh, invert, rough_pad) %>% mutate_(template = ~basename(template))
-  if (nrow(rough) > length(positions)) warning('For ', basename(template), ', keeping positions (', paste(positions, collapse = ', '), ') of ', nrow(rough), ' available.')
-  if (display) display_rough_crop(img, rough, 'red')
-  plates <- lapply(positions, function(p) with(rough, img[ rough_l[p]:rough_r[p], rough_t[p]:rough_b[p] ]))
+  rough <- screenmill:::rough_crop(img, thresh, invert, rough_pad) %>% mutate_(template = ~basename(template))
+  if (nrow(rough) > length(anno$position)) warning('For ', basename(template), ', keeping positions (', paste(anno$position, collapse = ', '), ') of ', nrow(rough), ' available.')
+  if (display) screenmill:::display_rough_crop(img, rough, 'red')
+  plates <- lapply(anno$position, function(p) with(rough, img[ rough_l[p]:rough_r[p], rough_t[p]:rough_b[p] ]))
 
   # Determine fine crop coordinates
-  progress <- progress_estimated(length(positions))
+  progress <- progress_estimated(length(anno$position))
   fine <-
-    lapply(positions, function(p) {
+    lapply(anno$position, function(p) {
       progress$tick()$print()
-      fine_crop(plates[[p]], rotate, range, step, fine_pad, invert) %>%
+      screenmill:::fine_crop(plates[[p]], rotate, range, step, fine_pad, invert) %>%
         mutate(template = basename(template), position = p)
     }) %>%
     bind_rows
 
   # Determine grid coordinates
   message(basename(template), ': locating colony grid')
-  progress <- progress_estimated(length(positions))
+  progress <- progress_estimated(length(anno$position))
   grid <-
-    lapply(positions, function(p) {
+    lapply(1:length(anno$position), function(i) {
       progress$tick()$print()
+      p <- anno$position[i]
+      finei <- fine[which(fine$position == p), ]
+      collection_id <- anno$strain_collection_id[p]
+      collection_plate <- anno$plate[p]
+      keyi <- with(key, key[which(strain_collection_id == collection_id & plate == collection_plate), ])
       plate <- plates[[p]]
-      if (invert) plate <- 1 - plate
-      rotated <- EBImage::rotate(plate, fine$rotate[p])
-      cropped <- with(fine, rotated[fine_l[p]:fine_r[p], fine_t[p]:fine_b[p]])
 
-      result <- locate_grid(cropped, radius = 0.9)
+      if (invert) plate <- 1 - plate
+      rotated <- EBImage::rotate(plate, finei$rotate)
+      cropped <- with(finei, rotated[fine_l:fine_r, fine_t:fine_b])
+
+      result <- screenmill:::locate_grid(cropped, radius = 0.9)
 
       if (is.null(result)) {
         warning(
           'Failed to locate colony grid for ', basename(template),
           ' at position ', p, '. This plate position has been skipped.')
       } else {
-        result <- mutate_(result, template = ~basename(template), position = ~p)
+        # Annotate result with template, position, strain collection and plate
+        result <-
+          mutate_(result, template = ~basename(template), position = ~p) %>%
+          left_join(mutate_(anno, template = ~basename(template)), by = c('template', 'position'))
+
+        # Check the grid size and compare to expected plate size
+        replicates <- nrow(result) / nrow(keyi)
+
+        if (sqrt(replicates) %% 1 != 0) {
+          warning(
+            'Size of detected colony grid (', nrow(result), ') for ',
+            basename(template), ' at position ', p,
+            ' is not a square multiple of the number of annotated positions (',
+            nrow(keyi), ') present in the key for ', collection_id,
+            ' plate #', collection_plate, '.'
+          )
+        } else {
+          # Annotate with key row/column/replicate values
+          key_rows <- sort(unique(keyi$row))
+          key_cols <- sort(unique(keyi$column))
+          n_rows   <- length(key_rows)
+          n_cols   <- length(key_cols)
+          sqrt_rep <- sqrt(replicates)
+          one_mat  <- matrix(rep(1, times = nrow(keyi)), nrow = n_rows, ncol = n_cols)
+
+          rep_df <-
+            (one_mat %x% matrix(1:replicates, byrow = T, ncol = sqrt_rep)) %>%
+            as.data.frame %>%
+            add_rownames('colony_row') %>%
+            gather('colony_col', 'replicate', starts_with('V')) %>%
+            mutate(
+              colony_row = as.integer(colony_row),
+              colony_col = as.integer(gsub('V', '', colony_col))
+            )
+
+          col_df <-
+            matrix(rep(key_cols, each = n_rows * replicates), ncol = n_cols * sqrt_rep) %>%
+            as.data.frame %>%
+            add_rownames('colony_row') %>%
+            gather('colony_col', 'column', starts_with('V')) %>%
+            mutate(
+              colony_row = as.integer(colony_row),
+              colony_col = as.integer(gsub('V', '', colony_col))
+            )
+
+          row_df <-
+            matrix(rep(key_rows, each = n_cols * replicates), nrow = n_rows * sqrt_rep, byrow = T) %>%
+            as.data.frame %>%
+            add_rownames('colony_row') %>%
+            gather('colony_col', 'row', starts_with('V')) %>%
+            mutate(
+              colony_row = as.integer(colony_row),
+              colony_col = as.integer(gsub('V', '', colony_col))
+            )
+
+          result <-
+            result %>%
+            left_join(row_df, by = c('colony_row', 'colony_col')) %>%
+            left_join(col_df, by = c('colony_row', 'colony_col')) %>%
+            left_join(rep_df, by = c('colony_row', 'colony_col')) %>%
+            select(template:replicate, colony_row:background, everything())
+        }
       }
 
       if (display) display_plate(cropped, result, template, p, text.color = 'red', grid.color = 'blue')
 
       return(result)
     }) %>%
-    bind_rows %>%
-    select_(~template, ~position, ~everything())
+    bind_rows
 
   # Combine rough and fine crop coordinates
   crop <-
