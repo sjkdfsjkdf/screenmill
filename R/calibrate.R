@@ -141,16 +141,20 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
 
   # Determine rough crop coordinates and apply to this image
   rough <- screenmill:::rough_crop(img, thresh, invert, rough_pad) %>% mutate_(template = ~basename(template))
-  if (nrow(rough) > length(anno$position)) warning('For ', basename(template), ', keeping positions (', paste(anno$position, collapse = ', '), ') of ', nrow(rough), ' available.')
+  if (nrow(rough) > length(anno$position)) warning('For ', basename(template), ', keeping positions (', paste(anno$position, collapse = ', '), ') of ', nrow(rough), ' available.', call. = FALSE)
   if (display) screenmill:::display_rough_crop(img, rough, 'red')
-  plates <- lapply(anno$position, function(p) with(rough, img[ rough_l[p]:rough_r[p], rough_t[p]:rough_b[p] ]))
+  plates <- lapply(1:length(anno$position), function(i) {
+    p <- anno$position[i]
+    with(rough[rough$position == p, ], img[ rough_l:rough_r, rough_t:rough_b ])
+  })
 
   # Determine fine crop coordinates
   progress <- progress_estimated(length(anno$position))
   fine <-
-    lapply(anno$position, function(p) {
+    lapply(1:length(anno$position), function(i) {
       progress$tick()$print()
-      screenmill:::fine_crop(plates[[p]], rotate, range, step, fine_pad, invert) %>%
+      p <- anno$position[i]
+      screenmill:::fine_crop(plates[[i]], rotate, range, step, fine_pad, invert) %>%
         mutate(template = basename(template), position = p)
     }) %>%
     bind_rows
@@ -161,12 +165,12 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
   grid <-
     lapply(1:length(anno$position), function(i) {
       progress$tick()$print()
-      p <- anno$position[i]
-      finei <- fine[which(fine$position == p), ]
-      collection_id <- anno$strain_collection_id[p]
-      collection_plate <- anno$plate[p]
-      keyi <- with(key, key[which(strain_collection_id == collection_id & plate == collection_plate), ])
-      plate <- plates[[p]]
+      p                <- anno$position[i]
+      collection_id    <- anno$strain_collection_id[i]
+      collection_plate <- anno$plate[i]
+      finei            <- fine[which(fine$position == p), ]
+      keyi  <- with(key, key[which(strain_collection_id == collection_id & plate == collection_plate), ])
+      plate <- plates[[i]]
 
       if (invert) plate <- 1 - plate
       rotated <- EBImage::rotate(plate, finei$rotate)
@@ -177,7 +181,8 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
       if (is.null(result)) {
         warning(
           'Failed to locate colony grid for ', basename(template),
-          ' at position ', p, '. This plate position has been skipped.')
+          ' at position ', p, '. This plate position has been skipped.',
+          call. = FALSE)
       } else {
         # Annotate result with template, position, strain collection and plate
         result <-
@@ -193,7 +198,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
             basename(template), ' at position ', p,
             ' is not a square multiple of the number of annotated positions (',
             nrow(keyi), ') present in the key for ', collection_id,
-            ' plate #', collection_plate, '.'
+            ' plate #', collection_plate, '.', call. = FALSE
           )
         } else {
           # Annotate with key row/column/replicate values
