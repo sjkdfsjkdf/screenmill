@@ -35,52 +35,54 @@
 #' hot_table renderRHandsontable rHandsontableOutput hot_to_r
 #' @export
 
-annotate <- function(dir,
-                     queries = getOption('screenmill.queries'),
-                     strain_collections = getOption('screenmill.strain_collections'),
-                     strain_collection_keys = getOption('screenmill.strain_collection_keys'),
-                     strains = getOption('screenmill.strains'),
-                     media = getOption('screenmill.media'),
-                     treatments = getOption('screenmill.treatments'),
-                     temperatures = c(23, 27, 30, 33, 37),
-                     overwrite = FALSE,
-                     update = TRUE) {
+annotate <- function(dir, queries, strain_collections, strain_collection_keys,
+                     strains, media, treatments, temperatures = c(23, 27, 30, 33, 37),
+                     overwrite = FALSE, update = TRUE) {
   # ---- Setup ----
   if (missing(dir) && interactive()) {
     message('Choose a file in the directory of images you wish to process.')
     dir <- dirname(file.choose())
   }
-  assert_that(is.dir(dir), is.flag(overwrite), is.flag(update))
+
+  # Check arguments
+  assert_that(is.dir(dir), is.flag(overwrite), is.flag(update), is.numeric(temperatures))
   dir <- gsub('/$', '', dir)
-  target <- paste(dir, 'screenmill-annotations.csv', sep = '/')
+  target <- file.path(dir, 'screenmill-annotations.csv', fsep = '/')
 
   # Get information about images - path, file, standard, time_series, time
   images <- image_data(dir)
 
-  # Get known values from rothfreezer database if available
-  if (requireNamespace('rothfreezer', quietly = T)) {
-    db <- rothfreezer::src_rothfreezer()
-    if (is.null(strain_collection_keys)) {
-      strain_collection_keys <-
-        left_join(
-          tbl(db, 'strain_collections') %>% select_(~strain_collection_id:plate_control),
-          tbl(db, 'strains') %>% select_(~strain_id, ~strain_name, ~gene_id),
-          by = 'strain_id'
-        ) %>%
-        select_(~strain_collection_id, ~strain_id, ~strain_name, ~gene_id, ~plate:plate_control)
-    }
-    if (is.null(strain_collections)) strain_collections <- collect(tbl(db, 'strain_collection_info'))
-    if (is.null(queries))    queries    <- collect(tbl(db, 'queries'))
-    if (is.null(treatments)) treatments <- collect(tbl(db, 'treatments'))
-    if (is.null(media))      media      <- collect(tbl(db, 'media'))
+  # Initialize lookup tables if missing
+  use_db <- requireNamespace('rothfreezer', quietly = T)
+  if (use_db) db <- rothfreezer::src_rothfreezer()
+  if (missing(strain_collection_keys)) {
+    strain_collection_keys <- getOption(
+      'screenmill.strain_collection_keys',
+      default = if (use_db) rothfreezer::view_strain_collection_keys(db) else NULL)
+  }
+  if (missing(strain_collections)) {
+    strain_collections <- getOption(
+      'screenmill.strain_collections',
+      default = if (use_db) collect(tbl(db, 'strain_collection_info')) else NULL)
+  }
+  if (missing(queries)) {
+    queries <- getOption(
+      'screenmill.queries',
+      default = if (use_db) collect(tbl(db, 'queries')) else NULL)
+  }
+  if (missing(treatments)) {
+    treatments <- getOption(
+      'screenmill.treatments',
+      default = if (use_db) collect(tbl(db, 'treatments')) else NULL)
+  }
+  if (missing(media)) {
+    media <- getOption(
+      'screenmill.media',
+      default = if (use_db) collect(tbl(db, 'media')) else NULL)
   }
 
   # Check Tables
   check_annotation_tables(strain_collections, strain_collection_keys, queries, treatments, media)
-
-  # Letter map to convert letters to integers
-  LETTER_map <- 1:length(LETTERS)
-  names(LETTER_map) <- LETTERS
 
   # Initialize variables
   vars <- list()
@@ -105,11 +107,30 @@ annotate <- function(dir,
       group_by(file, group) %>%
       mutate(positions = n(), time = end) %>%
       ungroup
+    vars$user  <- vars$tbl$owner[1]
+    vars$email <- vars$tbl$email[1]
+    vars$ts    <- vars$tbl$time_series[1]
+    vars$tbl1  <-
+      (vars$tbl) %>%
+      select(file, time, group) %>%
+      distinct
+    vars$tbl2  <-
+      (vars$tbl) %>%
+      select(group, template, start, positions, temperature) %>%
+      distinct
+    vars$tbl3 <-
+      (vars$tbl) %>%
+      select(
+        group, template, position, strain_collection_id, plate, query_id,
+        treatment_id, media_id
+      ) %>%
+      distinct
 
     # If not overwrite and everything has been annotated then exit
     if (!overwrite && all(complete.cases(vars$tbl))) {
       message('Plates have already been annotated. Set "overwrite = TRUE" to re-annotate.')
 
+      # If desired, update CSVs with current annotation tables
       if (update) {
         strain_collections %>%
           filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
@@ -130,38 +151,11 @@ annotate <- function(dir,
         strain_collection_keys %>%
           filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
           collect %>%
-          mutate(
-            row = toupper(row),
-            row = ifelse(row %in% LETTERS, LETTER_map[row], row),
-            row = as.integer(row),
-            column = toupper(column),
-            column = ifelse(column %in% LETTERS, LETTER_map[column], column),
-            column = as.integer(column)
-          ) %>%
           write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
       }
 
       return(invisible(dir))
     }
-
-    vars$user  <- vars$tbl$owner[1]
-    vars$email <- vars$tbl$email[1]
-    vars$ts    <- vars$tbl$time_series[1]
-    vars$tbl1  <-
-      (vars$tbl) %>%
-      select(file, time, group) %>%
-      distinct
-    vars$tbl2  <-
-      (vars$tbl) %>%
-      select(group, template, start, positions, temperature) %>%
-      distinct
-    vars$tbl3 <-
-      (vars$tbl) %>%
-      select(
-        group, template, position, strain_collection_id, plate, query_id,
-        treatment_id, media_id
-      ) %>%
-      distinct
   }
 
   # Determine column widths as ~10-13 pixels per character
@@ -527,21 +521,21 @@ check_annotation_tables <- function(key_info, keys, queries, treatments, media) 
   missing_query  <- req_cols_query[which(!req_cols_query %in% colnames(queries))]
   missing_treat  <- req_cols_treat[which(!req_cols_treat %in% colnames(treatments))]
   missing_media  <- req_cols_media[which(!req_cols_media %in% colnames(media))]
-  if (length(missing_key))   warning('Missing required columns (', missing_key,   ') from strain_collection_keys table.')
-  if (length(missing_info))  warning('Missing required columns (', missing_info,  ') from strain_collections table.')
-  if (length(missing_query)) warning('Missing required columns (', missing_query, ') from queries table.')
-  if (length(missing_treat)) warning('Missing required columns (', missing_treat, ') from treatments table.')
-  if (length(missing_media)) warning('Missing required columns (', missing_media, ') from media table.')
+  if (length(missing_key))   warning('Missing required columns (', paste(missing_key,   collapse = ', '), ') from strain_collection_keys table.', call. = F)
+  if (length(missing_info))  warning('Missing required columns (', paste(missing_info,  collapse = ', '), ') from strain_collections table.', call. = F)
+  if (length(missing_query)) warning('Missing required columns (', paste(missing_query, collapse = ', '), ') from queries table.', call. = F)
+  if (length(missing_treat)) warning('Missing required columns (', paste(missing_treat, collapse = ', '), ') from treatments table.', call. = F)
+  if (length(missing_media)) warning('Missing required columns (', paste(missing_media, collapse = ', '), ') from media table.', call. = F)
   # Check for duplicate entries
   # Duplicate strain collection keys are not checked here because this table needs to be filtered before checking
   dup_info  <- with(key_info, strain_collection_id[duplicated(strain_collection_id)])
   dup_query <- with(queries, query_id[duplicated(query_id)])
   dup_treat <- with(treatments, treatment_id[duplicated(treatment_id)])
   dup_media <- with(media, media_id[duplicated(media_id)])
-  if (length(dup_info))  warning('Duplicate entries for (', dup_info,  ') in strain_collections information table')
-  if (length(dup_query)) warning('Duplicate entries for (', dup_query, ') in queries table')
-  if (length(dup_treat)) warning('Duplicate entries for (', dup_treat, ') in treatments table')
-  if (length(dup_media)) warning('Duplicate entries for (', dup_media, ') in media table')
+  if (length(dup_info))  warning('Duplicate entries for (', paste(dup_info,  collapse = ', '), ') in strain_collections information table', call. = F)
+  if (length(dup_query)) warning('Duplicate entries for (', paste(dup_query, collapse = ', '), ') in queries table', call. = F)
+  if (length(dup_treat)) warning('Duplicate entries for (', paste(dup_treat, collapse = ', '), ') in treatments table', call. = F)
+  if (length(dup_media)) warning('Duplicate entries for (', paste(dup_media, collapse = ', '), ') in media table', call. = F)
 }
 
 

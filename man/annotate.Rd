@@ -4,13 +4,9 @@
 \alias{annotate}
 \title{RStudio Addin for annotating plate images}
 \usage{
-annotate(dir = NULL, queries = getOption("screenmill.queries"),
-  strain_collections = getOption("screenmill.strain_collections"),
-  strain_collection_keys = getOption("screenmill.strain_collection_keys"),
-  strains = getOption("screenmill.strains"),
-  media = getOption("screenmill.media"),
-  treatments = getOption("screenmill.treatments"), temperatures = c(23, 27,
-  30, 33, 37), overwrite = FALSE, update = TRUE)
+annotate(dir, queries, strain_collections, strain_collection_keys, strains,
+  media, treatments, temperatures = c(23, 27, 30, 33, 37),
+  overwrite = FALSE, update = TRUE)
 }
 \arguments{
 \item{dir}{Directory of images to process. If \code{NULL} the
