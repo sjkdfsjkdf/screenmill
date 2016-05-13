@@ -14,7 +14,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = '
   ano_path <- file.path(dir, 'screenmill-annotations.csv', fsep = '/')
   crp_path <- file.path(dir, 'screenmill-calibration-crop.csv', fsep = '/')
   grd_path <- file.path(dir, 'screenmill-calibration-grid.csv', fsep = '/')
-  target   <- file.path(dir, 'screenmill-measurments.csv', fsep = '/')
+  target   <- file.path(dir, 'screenmill-measurements.csv', fsep = '/')
 
   # Stop if plates have not yet been annotated
   if (!(file.exists(crp_path) && file.exists(grd_path))) stop('Could not find calibration files. Please annotate and calibrate before measuring.\nSee ?annotate and ?calibrate for more details.')
