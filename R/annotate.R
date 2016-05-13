@@ -417,19 +417,22 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
         filter(media_id %in% c('', annotations$media_id)) %>%
         write_csv(file.path(dir, 'screenmill-media.csv', fsep = '/'))
 
-      strain_collection_keys %>%
+      keys <-
+        strain_collection_keys %>%
         filter(strain_collection_id %in% c('', annotations$strain_collection_id)) %>%
-        collect %>%
-        mutate(
-          row = toupper(row),
-          row = ifelse(row %in% LETTERS, LETTER_map[row], row),
-          row = as.integer(row),
-          column = toupper(column),
-          column = ifelse(column %in% LETTERS, LETTER_map[column], column),
-          column = as.integer(column)
-        ) %>%
-        write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
+        collect
 
+      write_csv(keys, file.path(dir, 'screenmill-collection-keys.csv'))
+
+      # ---- Issue warnings ----
+      x <- annotations[, c('strain_collection_id', 'plate')]
+      y <- keys[, c('strain_collection_id', 'plate')]
+      crap <- as.data.frame(setdiff(x, y))
+      if (nrow(crap)) {
+        warning('The strain collection keys are missing the following plate ',
+                'numbers.\nPlease resolve this issue before continuing your analysis.', call. = T)
+        print(crap)
+      }
       stopApp(invisible(dir))
     })
   }
