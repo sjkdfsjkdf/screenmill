@@ -1,3 +1,12 @@
+#' Measure Colonies
+#'
+#' Measure and save colonies.
+#'
+#' @param dir Path to directory to process.
+#' @param overwrite Should previous measurements be overwritten?
+#' @param save.plates Should cropped/rotated plates be saved? Defaults to \code{FALSE}.
+#' @param save.colonies Should cropped colonies be saved? Defaults to \code{TRUE}.
+#'
 #' @importFrom readr read_csv write_csv
 #' @importFrom parallel mclapply detectCores
 #' @export
