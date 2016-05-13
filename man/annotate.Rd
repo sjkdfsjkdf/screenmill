@@ -4,12 +4,12 @@
 \alias{annotate}
 \title{RStudio Addin for annotating plate images}
 \usage{
-annotate(dir, queries, strain_collections, strain_collection_keys, strains,
-  media, treatments, temperatures = c(23, 27, 30, 33, 37),
-  overwrite = FALSE, update = TRUE)
+annotate(dir, queries, strain_collections, strain_collection_keys, media,
+  treatments, temperatures = c(23, 27, 30, 33, 37), overwrite = FALSE,
+  update = TRUE)
 }
 \arguments{
-\item{dir}{Directory of images to process. If \code{NULL} the
+\item{dir}{Directory of images to process. If missing the
 user will be prompted to choose a directory.}
 
 \item{queries}{A dataframe of available queries. Uses
@@ -17,10 +17,14 @@ user will be prompted to choose a directory.}
 
 \item{strain_collections}{A dataframe of available strain
 collections. Uses \code{getOption('screenmill.strain_collections')}
-(see Details).}
+by default (see Details).}
+
+\item{strain_collection_keys}{A dataframe of strain collection keyfiles.
+Uses \code{getOption('screenmill.strain_collection_keys')}
+by default (see Details).}
 
 \item{media}{A dataframe of available media. Uses
-\code{getOption('screenmill.media')} by default(see Details).}
+\code{getOption('screenmill.media')} by default (see Details).}
 
 \item{treatments}{A dataframe of available treatments. Uses
 \code{getOption('screenmill.treatments')} by default (see Details).}
@@ -29,6 +33,9 @@ collections. Uses \code{getOption('screenmill.strain_collections')}
 
 \item{overwrite}{Should existing annotations be overwritten?
 Defaults to \code{FALSE}.}
+
+\item{update}{Should annotation tables be updated? Defaults to \code{TRUE}.
+Ignored if overwrite is \code{TRUE}, or annotation is incomplete.}
 }
 \description{
 This function launches a Shiny gadget that allows a user to record information
@@ -37,13 +44,68 @@ about plate images for arrayed colony growth experiments.
 \details{
 This application is provided to make annotation of plates in
 colony growth experiments easier and safer. It will try to warn, or prevent
-the user from entering invalid data. If the \code{rothfreezer} package
-is installed, arguments set to \code{NULL} will be pulled from this package's
-database.
+the user from entering invalid data. If the user does not supply annotation
+tables (i.e. missing the arguments \code{queries}, \code{strain_collections},
+\code{strain_collection_keys}, \code{media}, or \code{treatments}) then the
+user defined options will be used (via \code{getOption('screenmill.<table>')})
+The \code{rothfreezer} package database will be used as a fallback if available.
 
-The resulting annotation table is saved as \code{plate-annotations.csv}
-in the directory containing the annotated images.
+The resulting annotation tables are saved as CSV files in the chosen directory.
 
 To quit without saving, just press "Cancel".
+
+Required fields for annotation tables are described in the following sections.
+}
+\section{Queries}{
+
+
+\describe{
+  \item{\bold{query_id} (chr)}{Query IDs (e.g. plasmid/strain IDs). Must be unique.}
+  \item{\bold{query_name} (chr)}{Shorthand name of the query. Does not need to be unique.}
+  \item{\bold{control_query_id} (chr)}{The query ID of the control (e.g. empty vector). Should also be present as a query ID.}
+}
+}
+
+\section{Strain Collections}{
+
+
+\describe{
+  \item{\bold{strain_collection_id} (chr)}{Unique IDs for strain collections.}
+  \item{\bold{description} (chr)}{A description of the strain collection.}
+}
+}
+
+\section{Strain Collection Keys}{
+
+
+\describe{
+  \item{\bold{strain_collection_id} (chr)}{The strain's corresponding collection ID.}
+  \item{\bold{strain_id} (chr)}{Unique identifiers for each strain.}
+  \item{\bold{strain_name} (chr)}{Shorthand name of the strain. Does not need to be unique.}
+  \item{\bold{plate} (int)}{The collection plate number.}
+  \item{\bold{row} (int)}{The row number.}
+  \item{\bold{column} (int)}{The column number.}
+  \item{\bold{plate_control} (lgl)}{\code{TRUE}/\code{FALSE} is the strain a plate control? Strains
+  marked \code{TRUE} will be used for plate level normalization.}
+}
+}
+
+\section{Media}{
+
+
+\describe{
+  \item{\bold{media_id} (chr)}{A unique ID for the base media used in the final plate of the experiment.}
+  \item{\bold{media_name} (chr)}{Shorthand name of the media.}
+}
+}
+
+\section{Treatments}{
+
+
+\describe{
+  \item{\bold{treatment_id} (chr)}{A unique ID for the treatment condition.}
+  \item{\bold{treatment_name} (chr)}{Shorthand name of the treatment condition.}
+  \item{\bold{control_treatment_id} (chr)}{The treatment ID of the control condition (e.g. Untreated).}
+}
 }
 
