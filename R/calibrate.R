@@ -47,7 +47,7 @@
 #'
 #' @export
 
-calibrate <- function(dir = '.', rotate = 90, range = 6, step = 0.2,
+calibrate <- function(dir = '.', rotate = 90, range = 4, step = 0.2,
                       thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
                       fine_pad = c(5, 5, 5, 5), display = TRUE,
                       overwrite = FALSE) {
@@ -56,9 +56,9 @@ calibrate <- function(dir = '.', rotate = 90, range = 6, step = 0.2,
   if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
 
   # Validate input
-  stopifnot(
-    is.string(dir), is.dir(dir), is.number(rotate), is.number(range),
-    is.number(step), is.number(thresh), is.flag(invert), is.flag(display),
+  assert_that(
+    is.dir(dir), is.number(rotate), is.number(range), is.number(step),
+    is.number(thresh), is.flag(invert), is.flag(display),
     is.flag(overwrite), is.numeric(rough_pad), length(rough_pad) == 4,
     is.numeric(fine_pad), length(fine_pad) == 4
   )

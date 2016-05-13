@@ -35,7 +35,7 @@
 #' hot_table renderRHandsontable rHandsontableOutput hot_to_r
 #' @export
 
-annotate <- function(dir = NULL,
+annotate <- function(dir,
                      queries = getOption('screenmill.queries'),
                      strain_collections = getOption('screenmill.strain_collections'),
                      strain_collection_keys = getOption('screenmill.strain_collection_keys'),
@@ -46,11 +46,11 @@ annotate <- function(dir = NULL,
                      overwrite = FALSE,
                      update = TRUE) {
   # ---- Setup ----
-  if (is.null(dir)) {
+  if (missing(dir) && interactive()) {
     message('Choose a file in the directory of images you wish to process.')
     dir <- dirname(file.choose())
   }
-  stopifnot(is.string(dir), is.dir(dir))
+  assert_that(is.dir(dir), is.flag(overwrite), is.flag(update))
   dir <- gsub('/$', '', dir)
   target <- paste(dir, 'screenmill-annotations.csv', sep = '/')
 

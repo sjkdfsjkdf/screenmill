@@ -2,12 +2,10 @@
 #' @importFrom parallel mclapply detectCores
 #' @export
 
-measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = 'rds') {
+measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T) {
 
   # Validate input
-  stopifnot(
-    is.string(dir), is.dir(dir), is.flag(overwrite)
-  )
+  assert_that(is.dir(dir), is.flag(overwrite), is.flag(save.plates), is.flag(save.colonies))
 
   # Clean trailing slash from directory input
   dir <- gsub('/$', '', dir)
@@ -75,12 +73,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = '
         if (crop$invert) fine <- 1 - fine
 
         # Save cropped plate in desired format
-        if (any(grepl('rds', save.plates, ignore.case = T))) {
-          target <- paste0(dir, '/plates/')
-          if (!dir.exists(target)) dir.create(target)
-          saveRDS(fine, paste0(target, p, '.rds'))
-        }
-        if (any(grepl('tif', save.plates, ignore.case = T))) {
+        if (save.plates) {
           target <- paste0(dir, '/plates/')
           if (!dir.exists(target)) dir.create(target)
           EBImage::writeImage(
@@ -98,7 +91,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = '
         grid$size <- result$measurements
 
         # Save colonies in desired format
-        if (any(grepl('rds', save.colonies, ignore.case = T))) {
+        if (save.colonies) {
           target <- paste0(dir, '/colonies/')
           if (!dir.exists(target)) dir.create(target)
           saveRDS(result$colonies, paste0(target, p, '.rds'))
