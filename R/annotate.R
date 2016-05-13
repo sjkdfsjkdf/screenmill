@@ -3,31 +3,82 @@
 #' This function launches a Shiny gadget that allows a user to record information
 #' about plate images for arrayed colony growth experiments.
 #'
-#' @param dir Directory of images to process. If \code{NULL} the
-#' user will be prompted to choose a directory.
+#' @param dir Directory of images to process. If missing the
+#'   user will be prompted to choose a directory.
 #' @param queries A dataframe of available queries. Uses
-#' \code{getOption('screenmill.queries')} by default (see Details).
+#'   \code{getOption('screenmill.queries')} by default (see Details).
 #' @param strain_collections A dataframe of available strain
-#' collections. Uses \code{getOption('screenmill.strain_collections')}
-#' (see Details).
+#'   collections. Uses \code{getOption('screenmill.strain_collections')}
+#'   by default (see Details).
+#' @param strain_collection_keys A dataframe of strain collection keyfiles.
+#'   Uses \code{getOption('screenmill.strain_collection_keys')}
+#'   by default (see Details).
 #' @param media A dataframe of available media. Uses
-#' \code{getOption('screenmill.media')} by default(see Details).
+#'   \code{getOption('screenmill.media')} by default (see Details).
 #' @param treatments A dataframe of available treatments. Uses
-#' \code{getOption('screenmill.treatments')} by default (see Details).
+#'   \code{getOption('screenmill.treatments')} by default (see Details).
 #' @param temperatures A vector of recommended temperatures.
 #' @param overwrite Should existing annotations be overwritten?
-#' Defaults to \code{FALSE}.
+#'   Defaults to \code{FALSE}.
+#' @param update Should annotation tables be updated? Defaults to \code{TRUE}.
+#'   Ignored if overwrite is \code{TRUE}, or annotation is incomplete.
 #'
 #' @details This application is provided to make annotation of plates in
 #' colony growth experiments easier and safer. It will try to warn, or prevent
-#' the user from entering invalid data. If the \code{rothfreezer} package
-#' is installed, arguments set to \code{NULL} will be pulled from this package's
-#' database.
+#' the user from entering invalid data. If the user does not supply annotation
+#' tables (i.e. missing the arguments \code{queries}, \code{strain_collections},
+#' \code{strain_collection_keys}, \code{media}, or \code{treatments}) then the
+#' user defined options will be used (via \code{getOption('screenmill.<table>')})
+#' The \code{rothfreezer} package database will be used as a fallback if available.
 #'
-#' The resulting annotation table is saved as \code{plate-annotations.csv}
-#' in the directory containing the annotated images.
+#' The resulting annotation tables are saved as CSV files in the chosen directory.
 #'
 #' To quit without saving, just press "Cancel".
+#'
+#' Required fields for annotation tables are described in the following sections.
+#'
+#' @section Queries:
+#'
+#' \describe{
+#'   \item{\bold{query_id} (chr)}{Query IDs (e.g. plasmid/strain IDs). Must be unique.}
+#'   \item{\bold{query_name} (chr)}{Shorthand name of the query. Does not need to be unique.}
+#'   \item{\bold{control_query_id} (chr)}{The query ID of the control (e.g. empty vector). Should also be present as a query ID.}
+#' }
+#'
+#' @section Strain Collections:
+#'
+#' \describe{
+#'   \item{\bold{strain_collection_id} (chr)}{Unique IDs for strain collections.}
+#'   \item{\bold{description} (chr)}{A description of the strain collection.}
+#' }
+#'
+#' @section Strain Collection Keys:
+#'
+#' \describe{
+#'   \item{\bold{strain_collection_id} (chr)}{The strain's corresponding collection ID.}
+#'   \item{\bold{strain_id} (chr)}{Unique identifiers for each strain.}
+#'   \item{\bold{strain_name} (chr)}{Shorthand name of the strain. Does not need to be unique.}
+#'   \item{\bold{plate} (int)}{The collection plate number.}
+#'   \item{\bold{row} (int)}{The row number.}
+#'   \item{\bold{column} (int)}{The column number.}
+#'   \item{\bold{plate_control} (lgl)}{\code{TRUE}/\code{FALSE} is the strain a plate control? Strains
+#'   marked \code{TRUE} will be used for plate level normalization.}
+#' }
+#'
+#' @section Media:
+#'
+#' \describe{
+#'   \item{\bold{media_id} (chr)}{A unique ID for the base media used in the final plate of the experiment.}
+#'   \item{\bold{media_name} (chr)}{Shorthand name of the media.}
+#' }
+#'
+#' @section Treatments:
+#'
+#' \describe{
+#'   \item{\bold{treatment_id} (chr)}{A unique ID for the treatment condition.}
+#'   \item{\bold{treatment_name} (chr)}{Shorthand name of the treatment condition.}
+#'   \item{\bold{control_treatment_id} (chr)}{The treatment ID of the control condition (e.g. Untreated).}
+#' }
 #'
 #' @importFrom readr write_csv read_csv cols_only
 #' @importFrom stringr str_pad
@@ -35,52 +86,54 @@
 #' hot_table renderRHandsontable rHandsontableOutput hot_to_r
 #' @export
 
-annotate <- function(dir = NULL,
-                     queries = getOption('screenmill.queries'),
-                     strain_collections = getOption('screenmill.strain_collections'),
-                     strain_collection_keys = getOption('screenmill.strain_collection_keys'),
-                     strains = getOption('screenmill.strains'),
-                     media = getOption('screenmill.media'),
-                     treatments = getOption('screenmill.treatments'),
-                     temperatures = c(23, 27, 30, 33, 37),
-                     overwrite = FALSE,
-                     update = TRUE) {
+annotate <- function(dir, queries, strain_collections, strain_collection_keys,
+                     media, treatments, temperatures = c(23, 27, 30, 33, 37),
+                     overwrite = FALSE, update = TRUE) {
   # ---- Setup ----
-  if (is.null(dir)) {
+  if (missing(dir) && interactive()) {
     message('Choose a file in the directory of images you wish to process.')
     dir <- dirname(file.choose())
   }
-  stopifnot(is.string(dir), is.dir(dir))
+
+  # Check arguments
+  assert_that(is.dir(dir), is.flag(overwrite), is.flag(update), is.numeric(temperatures))
   dir <- gsub('/$', '', dir)
-  target <- paste(dir, 'screenmill-annotations.csv', sep = '/')
+  target <- file.path(dir, 'screenmill-annotations.csv', fsep = '/')
 
   # Get information about images - path, file, standard, time_series, time
   images <- image_data(dir)
 
-  # Get known values from rothfreezer database if available
-  if (requireNamespace('rothfreezer', quietly = T)) {
-    db <- rothfreezer::src_rothfreezer()
-    if (is.null(strain_collection_keys)) {
-      strain_collection_keys <-
-        left_join(
-          tbl(db, 'strain_collections') %>% select_(~strain_collection_id:plate_control),
-          tbl(db, 'strains') %>% select_(~strain_id, ~strain_name, ~gene_id),
-          by = 'strain_id'
-        ) %>%
-        select_(~strain_collection_id, ~strain_id, ~strain_name, ~gene_id, ~plate:plate_control)
-    }
-    if (is.null(strain_collections)) strain_collections <- collect(tbl(db, 'strain_collection_info'))
-    if (is.null(queries))    queries    <- collect(tbl(db, 'queries'))
-    if (is.null(treatments)) treatments <- collect(tbl(db, 'treatments'))
-    if (is.null(media))      media      <- collect(tbl(db, 'media'))
+  # Initialize lookup tables if missing
+  use_db <- requireNamespace('rothfreezer', quietly = T)
+  if (use_db) db <- rothfreezer::src_rothfreezer()
+  if (missing(strain_collection_keys)) {
+    strain_collection_keys <- getOption(
+      'screenmill.strain_collection_keys',
+      default = if (use_db) rothfreezer::view_strain_collection_keys(db) else NULL)
+  }
+  if (missing(strain_collections)) {
+    strain_collections <- getOption(
+      'screenmill.strain_collections',
+      default = if (use_db) collect(tbl(db, 'strain_collection_info')) else NULL)
+  }
+  if (missing(queries)) {
+    queries <- getOption(
+      'screenmill.queries',
+      default = if (use_db) collect(tbl(db, 'queries')) else NULL)
+  }
+  if (missing(treatments)) {
+    treatments <- getOption(
+      'screenmill.treatments',
+      default = if (use_db) collect(tbl(db, 'treatments')) else NULL)
+  }
+  if (missing(media)) {
+    media <- getOption(
+      'screenmill.media',
+      default = if (use_db) collect(tbl(db, 'media')) else NULL)
   }
 
   # Check Tables
   check_annotation_tables(strain_collections, strain_collection_keys, queries, treatments, media)
-
-  # Letter map to convert letters to integers
-  LETTER_map <- 1:length(LETTERS)
-  names(LETTER_map) <- LETTERS
 
   # Initialize variables
   vars <- list()
@@ -105,11 +158,30 @@ annotate <- function(dir = NULL,
       group_by(file, group) %>%
       mutate(positions = n(), time = end) %>%
       ungroup
+    vars$user  <- vars$tbl$owner[1]
+    vars$email <- vars$tbl$email[1]
+    vars$ts    <- vars$tbl$time_series[1]
+    vars$tbl1  <-
+      (vars$tbl) %>%
+      select(file, time, group) %>%
+      distinct
+    vars$tbl2  <-
+      (vars$tbl) %>%
+      select(group, template, start, positions, temperature) %>%
+      distinct
+    vars$tbl3 <-
+      (vars$tbl) %>%
+      select(
+        group, template, position, strain_collection_id, plate, query_id,
+        treatment_id, media_id
+      ) %>%
+      distinct
 
     # If not overwrite and everything has been annotated then exit
     if (!overwrite && all(complete.cases(vars$tbl))) {
       message('Plates have already been annotated. Set "overwrite = TRUE" to re-annotate.')
 
+      # If desired, update CSVs with current annotation tables
       if (update) {
         strain_collections %>%
           filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
@@ -130,38 +202,11 @@ annotate <- function(dir = NULL,
         strain_collection_keys %>%
           filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
           collect %>%
-          mutate(
-            row = toupper(row),
-            row = ifelse(row %in% LETTERS, LETTER_map[row], row),
-            row = as.integer(row),
-            column = toupper(column),
-            column = ifelse(column %in% LETTERS, LETTER_map[column], column),
-            column = as.integer(column)
-          ) %>%
           write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
       }
 
       return(invisible(dir))
     }
-
-    vars$user  <- vars$tbl$owner[1]
-    vars$email <- vars$tbl$email[1]
-    vars$ts    <- vars$tbl$time_series[1]
-    vars$tbl1  <-
-      (vars$tbl) %>%
-      select(file, time, group) %>%
-      distinct
-    vars$tbl2  <-
-      (vars$tbl) %>%
-      select(group, template, start, positions, temperature) %>%
-      distinct
-    vars$tbl3 <-
-      (vars$tbl) %>%
-      select(
-        group, template, position, strain_collection_id, plate, query_id,
-        treatment_id, media_id
-      ) %>%
-      distinct
   }
 
   # Determine column widths as ~10-13 pixels per character
@@ -372,19 +417,22 @@ annotate <- function(dir = NULL,
         filter(media_id %in% c('', annotations$media_id)) %>%
         write_csv(file.path(dir, 'screenmill-media.csv', fsep = '/'))
 
-      strain_collection_keys %>%
+      keys <-
+        strain_collection_keys %>%
         filter(strain_collection_id %in% c('', annotations$strain_collection_id)) %>%
-        collect %>%
-        mutate(
-          row = toupper(row),
-          row = ifelse(row %in% LETTERS, LETTER_map[row], row),
-          row = as.integer(row),
-          column = toupper(column),
-          column = ifelse(column %in% LETTERS, LETTER_map[column], column),
-          column = as.integer(column)
-        ) %>%
-        write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
+        collect
 
+      write_csv(keys, file.path(dir, 'screenmill-collection-keys.csv'))
+
+      # ---- Issue warnings ----
+      x <- annotations[, c('strain_collection_id', 'plate')]
+      y <- keys[, c('strain_collection_id', 'plate')]
+      crap <- as.data.frame(setdiff(x, y))
+      if (nrow(crap)) {
+        warning('The strain collection keys are missing the following plate ',
+                'numbers.\nPlease resolve this issue before continuing your analysis.', call. = T)
+        print(crap)
+      }
       stopApp(invisible(dir))
     })
   }
@@ -527,21 +575,21 @@ check_annotation_tables <- function(key_info, keys, queries, treatments, media) 
   missing_query  <- req_cols_query[which(!req_cols_query %in% colnames(queries))]
   missing_treat  <- req_cols_treat[which(!req_cols_treat %in% colnames(treatments))]
   missing_media  <- req_cols_media[which(!req_cols_media %in% colnames(media))]
-  if (length(missing_key))   warning('Missing required columns (', missing_key,   ') from strain_collection_keys table.')
-  if (length(missing_info))  warning('Missing required columns (', missing_info,  ') from strain_collections table.')
-  if (length(missing_query)) warning('Missing required columns (', missing_query, ') from queries table.')
-  if (length(missing_treat)) warning('Missing required columns (', missing_treat, ') from treatments table.')
-  if (length(missing_media)) warning('Missing required columns (', missing_media, ') from media table.')
+  if (length(missing_key))   warning('Missing required columns (', paste(missing_key,   collapse = ', '), ') from strain_collection_keys table.', call. = F)
+  if (length(missing_info))  warning('Missing required columns (', paste(missing_info,  collapse = ', '), ') from strain_collections table.', call. = F)
+  if (length(missing_query)) warning('Missing required columns (', paste(missing_query, collapse = ', '), ') from queries table.', call. = F)
+  if (length(missing_treat)) warning('Missing required columns (', paste(missing_treat, collapse = ', '), ') from treatments table.', call. = F)
+  if (length(missing_media)) warning('Missing required columns (', paste(missing_media, collapse = ', '), ') from media table.', call. = F)
   # Check for duplicate entries
   # Duplicate strain collection keys are not checked here because this table needs to be filtered before checking
   dup_info  <- with(key_info, strain_collection_id[duplicated(strain_collection_id)])
   dup_query <- with(queries, query_id[duplicated(query_id)])
   dup_treat <- with(treatments, treatment_id[duplicated(treatment_id)])
   dup_media <- with(media, media_id[duplicated(media_id)])
-  if (length(dup_info))  warning('Duplicate entries for (', dup_info,  ') in strain_collections information table')
-  if (length(dup_query)) warning('Duplicate entries for (', dup_query, ') in queries table')
-  if (length(dup_treat)) warning('Duplicate entries for (', dup_treat, ') in treatments table')
-  if (length(dup_media)) warning('Duplicate entries for (', dup_media, ') in media table')
+  if (length(dup_info))  warning('Duplicate entries for (', paste(dup_info,  collapse = ', '), ') in strain_collections information table', call. = F)
+  if (length(dup_query)) warning('Duplicate entries for (', paste(dup_query, collapse = ', '), ') in queries table', call. = F)
+  if (length(dup_treat)) warning('Duplicate entries for (', paste(dup_treat, collapse = ', '), ') in treatments table', call. = F)
+  if (length(dup_media)) warning('Duplicate entries for (', paste(dup_media, collapse = ', '), ') in media table', call. = F)
 }
 
 

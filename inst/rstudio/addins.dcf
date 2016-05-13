@@ -1,4 +1,4 @@
-Name: Annotate Plates
-Description: Launches plate annotation application
-Binding: annotate_plates
+Name: Screenmill annotation
+Description: Launches annotation application
+Binding: annotate
 Interactive: true
