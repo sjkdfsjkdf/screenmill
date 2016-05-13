@@ -4,7 +4,7 @@
 \alias{calibrate}
 \title{Calibrate cropping and rotation parameters}
 \usage{
-calibrate(dir = ".", rotate = 90, range = 6, step = 0.2,
+calibrate(dir = ".", rotate = 90, range = 4, step = 0.2,
   thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
   fine_pad = c(5, 5, 5, 5), display = TRUE, overwrite = FALSE)
 }
