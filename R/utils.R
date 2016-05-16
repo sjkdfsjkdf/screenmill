@@ -196,8 +196,6 @@ rough_crop <- function(img, thresh, invert, pad) {
     rename_(plate_row = ~Var1, plate_col = ~Var2) %>%
     left_join(rows, by = 'plate_row') %>%
     left_join(cols, by = 'plate_col') %>%
-    mutate(position = 1:n()) %>%
-    select_(~position, ~plate_row, ~plate_col, ~plate_x, ~plate_y, ~everything()) %>%
     mutate_(
       # Add padding if desired
       rough_l = ~rough_l - pad[1],
@@ -209,7 +207,14 @@ rough_crop <- function(img, thresh, invert, pad) {
       rough_r = ~ifelse(rough_r > nrow(img), nrow(img), rough_r),
       rough_t = ~ifelse(rough_t < 1, 1, rough_t),
       rough_b = ~ifelse(rough_b > ncol(img), ncol(img), rough_b)
-    )
+    ) %>%
+    # Remove any detected rough cropped objects that are less than 100x100 pixels
+    filter(
+      abs(rough_l - rough_r) > 100,
+      abs(rough_t - rough_b) > 100
+    ) %>%
+    mutate(position = 1:n()) %>%
+    select_(~position, ~plate_row, ~plate_col, ~plate_x, ~plate_y, ~rough_l, ~rough_r, ~rough_t, ~rough_b)
 }
 
 
