@@ -304,7 +304,12 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
       fine_l = ~ifelse(left < 1, 1, left),
       fine_r = ~ifelse(right > nrow(rotated), nrow(rotated), right),
       fine_t = ~ifelse(top < 1, 1, top),
-      fine_b = ~ifelse(bot > ncol(rotated), ncol(rotated), bot)
+      fine_b = ~ifelse(bot > ncol(rotated), ncol(rotated), bot),
+      # Expand edges if fine cropping was too aggressive
+      fine_l = ~ifelse(fine_l > 150, 150, fine_l),
+      fine_t = ~ifelse(fine_t > 150, 150, fine_t),
+      fine_r = ~ifelse(fine_r < nrow(rotated) - 150, nrow(rotated) - 150, fine_r),
+      fine_b = ~ifelse(fine_b < ncol(rotated) - 150, ncol(rotated) - 150, fine_b)
     ) %>%
     select_(~rotate, ~matches('fine'))
 }
