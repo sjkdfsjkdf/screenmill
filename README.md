@@ -10,7 +10,7 @@ This package is not currently available on [CRAN](https://cran.r-project.org), b
 
 **Step 2**: Install R package developer tools. Why? This package contains some Rcpp code that must be compiled, so you will need a C++ compiler (e.g. [GCC](https://gcc.gnu.org), or [clang](http://clang.llvm.org)). For more help, checkout this guide for R's [package development prerequisites](https://support.rstudio.com/hc/en-us/articles/200486498-Package-Development-Prerequisites).
 
-- **Mac OS X**: Install command-line developter tools in terminal with: `xcode-select --install`. Or install [Xcode](https://developer.apple.com/xcode/) from the app store.
+- **Mac OS X**: Install [Xcode](https://developer.apple.com/xcode/) (in terminal: `xcode-select --install`).
 - **Windows**: Install [Rtools](https://cran.r-project.org/bin/windows/Rtools/).
 - **Debian/Ubuntu**: Install the build-essential package in shell with: `sudo apt-get install build-essential`
 
