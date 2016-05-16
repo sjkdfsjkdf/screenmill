@@ -244,7 +244,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
             left_join(row_df, by = c('colony_row', 'colony_col')) %>%
             left_join(col_df, by = c('colony_row', 'colony_col')) %>%
             left_join(rep_df, by = c('colony_row', 'colony_col')) %>%
-            select(template:replicate, colony_row:background, everything())
+            select(template:replicate, colony_row:b, everything())
         }
       }
 
@@ -373,21 +373,10 @@ locate_grid <- function(img, radius = 0.9) {
       l = as.integer(round(ifelse(l < 1, 1, l))),
       r = as.integer(round(ifelse(r > nrow(img), nrow(img), r))),
       t = as.integer(round(ifelse(t < 1, 1, t))),
-      b = as.integer(round(ifelse(b > ncol(img), ncol(img), b))),
-      # Identify corner intensities,
-      tl = img[as.matrix(cbind(l, t))],
-      tr = img[as.matrix(cbind(r, t))],
-      bl = img[as.matrix(cbind(l, b))],
-      br = img[as.matrix(cbind(r, b))],
-      bg = apply(cbind(tl, tr, bl, br), 1, mean, trim = 0.5)
+      b = as.integer(round(ifelse(b > ncol(img), ncol(img), b)))
     )
 
-  # Predict background intensity via loess smoothing
-  selection$background <-
-    loess(bg ~ colony_row + colony_col, data = selection, span = 0.3, normalize = F, degree = 2) %>%
-    predict
-
-  return(selection %>% select(colony_row, colony_col, x, y, l, r, t, b, background))
+  return(selection %>% select(colony_row, colony_col, x, y, l, r, t, b))
 }
 
 # ---- Display Calibration: TODO ----------------------------------------------

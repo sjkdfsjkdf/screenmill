@@ -52,7 +52,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
     select(
       plate_id,
       strain_collection_id, plate, row, column, replicate,
-      colony_row, colony_col, colony_num, l, r, t, b, background
+      colony_row, colony_col, colony_num, l, r, t, b
     ) %>%
     ungroup
 
@@ -94,8 +94,26 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
           )
         }
 
-        # Measure colonies
-        grid      <- filter(grids, plate_id == p)
+        # ---- Measure colonies ----
+        grid <-
+          # Identify corner intensities
+          filter(grids, plate_id == p) %>%
+          mutate(
+            tl = fine[as.matrix(cbind(l, t))],
+            tr = fine[as.matrix(cbind(r, t))],
+            bl = fine[as.matrix(cbind(l, b))],
+            br = fine[as.matrix(cbind(r, b))],
+            bg = apply(cbind(tl, tr, bl, br), 1, mean, trim = 0.5)
+          )
+
+        # Predict background intensity via loess smoothing
+        grid$background <-
+          loess(
+            bg ~ colony_row + colony_col,
+            data = grid, span = 0.3, normalize = F, degree = 2
+          ) %>%
+          predict
+
         result    <- with(grid, measureColonies(fine, l, r, t, b, background))
         grid$size <- result$measurements
 
@@ -109,7 +127,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
         grid %>%
           select(
             plate_id, strain_collection_id, plate, row, column, replicate,
-            colony_row, colony_col, colony_num, size
+            colony_row, colony_col, colony_num, background, size
           )
       }, mc.cores = cores) %>%
       bind_rows

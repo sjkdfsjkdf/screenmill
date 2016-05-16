@@ -380,7 +380,8 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
           date = as.Date(start),
           owner = ifelse(is.null(input$user) || (input$user) == '', NA, (input$user)),
           email = ifelse(is.null(input$email) || (input$user) == '', NA, (input$email)),
-          time_series = (input$ts)
+          time_series = (input$ts),
+          hours_growth = difftime(end, start, units = 'hours') %>% as.numeric
         ) %>%
         group_by(date, group, position) %>%
         # Create plate_id column
@@ -392,7 +393,7 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
           plate_id = paste(date, grp3, pos3, tim3, sep = '-')
         ) %>%
         select(
-          plate_id, date, group, position, timepoint, file, template,
+          plate_id, date, group, position, timepoint, hours_growth, file, template,
           strain_collection_id, plate, query_id, treatment_id, media_id,
           temperature, time_series, start, end = time, owner, email
         )
@@ -403,7 +404,7 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
 
       strain_collections %>%
         filter(strain_collection_id %in% c('', annotations$strain_collection_id)) %>%
-        write_csv(file.path(dir, 'screenmill-collections.csv'))
+        write_csv(file.path(dir, 'screenmill-collections.csv', fsep = '/'))
 
       queries %>%
         filter(query_id %in% c('', annotations$query_id)) %>%
@@ -524,10 +525,10 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
           'The following tables are provided for convenience, if all fields have
           been filled in the above tables, you may press save to exit this
           application:')),
-        h2(tags$small('Strain collections')),
-        dataTableOutput('strain_collections'),
         h2(tags$small('Queries')),
         dataTableOutput('queries'),
+        h2(tags$small('Strain collections')),
+        dataTableOutput('strain_collections'),
         h2(tags$small('Treatments')),
         dataTableOutput('treatments'),
         h2(tags$small('Media')),
