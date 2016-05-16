@@ -1,10 +1,10 @@
-# ScreenMill R package
+# Screenmill R package
 
 Tools for working with [ScreenMill](http://www.rothsteinlab.com/tools/screen_mill/cm_engine) data.
 
 ## Installation
 
-The `screenmill` package is not currently available on [CRAN](https://cran.r-project.org), but can be installed from GitHub by following the instructions below.
+This package is not currently available on [CRAN](https://cran.r-project.org), but can be installed from GitHub by following the instructions below.
 
 **Step 1**: Install [R](https://cloud.r-project.org) (>= 3.3.0 recommended).
 
