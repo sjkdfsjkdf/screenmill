@@ -47,7 +47,7 @@
 #'
 #' @export
 
-calibrate <- function(dir = '.', rotate = 90, range = 4, step = 0.2,
+calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
                       thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
                       fine_pad = c(5, 5, 5, 5), display = TRUE,
                       overwrite = FALSE) {
@@ -168,6 +168,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
       p                <- anno$position[i]
       collection_id    <- anno$strain_collection_id[i]
       collection_plate <- anno$plate[i]
+      group            <- anno$group[i]
       finei            <- fine[which(fine$position == p), ]
       keyi  <- with(key, key[which(strain_collection_id == collection_id & plate == collection_plate), ])
       plate <- plates[[i]]
@@ -176,7 +177,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
       rotated <- EBImage::rotate(plate, finei$rotate)
       cropped <- with(finei, rotated[fine_l:fine_r, fine_t:fine_b])
 
-      result <- screenmill:::locate_grid(cropped, radius = 0.9)
+      result <- screenmill:::locate_grid(cropped, radius = 0.9, keyi)
 
       if (is.null(result)) {
         warning(
@@ -248,7 +249,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
         }
       }
 
-      if (display) display_plate(cropped, result, template, p, text.color = 'red', grid.color = 'blue')
+      if (display) display_plate(cropped, result, template, group, p, text.color = 'red', grid.color = 'blue')
 
       return(result)
     }) %>%
@@ -276,7 +277,7 @@ display_rough_crop <- function(img, rough, color) {
   with(rough, text(plate_x, plate_y, position, col = color))
 }
 
-display_plate <- function(img, grid, template, position, text.color, grid.color) {
+display_plate <- function(img, grid, template, group, position, text.color, grid.color) {
   EBImage::display(img, method = 'raster')
 
   if (!is.null(grid)) {
@@ -288,7 +289,7 @@ display_plate <- function(img, grid, template, position, text.color, grid.color)
 
   x <- nrow(img) / 2
   y <- ncol(img) / 2
-  text(x, y, labels = paste(basename(template), position, sep = '\n'), col = text.color, cex = 1.5)
+  text(x, y, labels = paste(basename(template), paste('Group:', group), paste('Position:', position), sep = '\n'), col = text.color, cex = 1.5)
 }
 
 # ---- Locate Colony Grid -----------------------------------------------------
@@ -301,7 +302,7 @@ display_plate <- function(img, grid, template, position, text.color, grid.color)
 #
 #' @importFrom tidyr complete
 
-locate_grid <- function(img, radius = 0.9) {
+locate_grid <- function(img, radius = 0.9, key) {
 
   # Scale image for rough object detection
   rescaled <- EBImage::normalize(img, inputRange = c(0.1, 0.8))
@@ -318,6 +319,10 @@ locate_grid <- function(img, radius = 0.9) {
   rows <- grid_breaks(thr, 'row', thresh = 0.07, edges = 'mid')
   col_centers <- ((cols + lag(cols)) / 2)[-1]
   row_centers <- ((rows + lag(rows)) / 2)[-1]
+  col_centers <- add_missing_grid(col_centers)
+  row_centers <- add_missing_grid(row_centers)
+  col_expected <- length(unique(key$column))
+  row_expected <- length(unique(key$row))
 
   if (length(col_centers) < 1 || length(row_centers) < 1) return(NULL)
 
@@ -377,6 +382,19 @@ locate_grid <- function(img, radius = 0.9) {
     )
 
   return(selection %>% select(colony_row, colony_col, x, y, l, r, t, b))
+}
+
+
+add_missing_grid <- function(centers) {
+  steps   <- diff(centers)
+  width   <- median(steps)
+  missing <- which(steps > width * 1.25)
+  add <- lapply(missing, function(x) {
+    start <- centers[x]
+    stop  <- centers[x + 1]
+    seq(from = start + width, to = stop - (width * 0.75), by = width)
+  })
+  sort(c(unlist(add), centers))
 }
 
 # ---- Display Calibration: TODO ----------------------------------------------
