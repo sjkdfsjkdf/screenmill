@@ -377,6 +377,7 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
         left_join(tbl3(), by = c('group', 'template')) %>%
         mutate_each(funs(ifelse(. == '', NA, .))) %>% # replace empty string with NA
         mutate(
+          plate = as.integer(plate),
           date = as.Date(start),
           owner = ifelse(is.null(input$user) || (input$user) == '', NA, (input$user)),
           email = ifelse(is.null(input$email) || (input$user) == '', NA, (input$email)),
@@ -425,15 +426,6 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
 
       write_csv(keys, file.path(dir, 'screenmill-collection-keys.csv'))
 
-      # ---- Issue warnings ----
-      x <- annotations[, c('strain_collection_id', 'plate')]
-      y <- keys[, c('strain_collection_id', 'plate')]
-      crap <- as.data.frame(setdiff(x, y))
-      if (nrow(crap)) {
-        warning('The strain collection keys are missing the following plate ',
-                'numbers.\nPlease resolve this issue before continuing your analysis.', call. = T)
-        print(crap)
-      }
       stopApp(invisible(dir))
     })
   }
