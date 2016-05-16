@@ -381,7 +381,7 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
           owner = ifelse(is.null(input$user) || (input$user) == '', NA, (input$user)),
           email = ifelse(is.null(input$email) || (input$user) == '', NA, (input$email)),
           time_series = (input$ts),
-          hours_growth = difftime(end, start, units = 'hours') %>% as.numeric
+          hours_growth = difftime(time, start, units = 'hours') %>% as.numeric
         ) %>%
         group_by(date, group, position) %>%
         # Create plate_id column
