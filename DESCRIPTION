@@ -1,7 +1,7 @@
 Package: screenmill
 Type: Package
 Title: Tools for working with ScreenMill data
-Version: 0.0.6
+Version: 0.0.7
 Date: 2015-05-28
 Authors@R: 'Eric Bryant <eeb2139@columbia.edu> [aut,cre]'
 Maintainer: 'Eric Bryant' <eeb2139@columbia.edu>
@@ -19,7 +19,7 @@ Imports:
     tidyr (>= 0.3.0),
     readr (>= 0.2.2),
     stringr,
-    EBImage,
+    EBImage (>= 4.12.2),
     assertthat,
     MASS,
     shiny (>= 0.13),
