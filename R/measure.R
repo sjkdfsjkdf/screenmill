@@ -54,6 +54,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
       strain_collection_id, plate, row, column, replicate,
       colony_row, colony_col, colony_num, l, r, t, b
     ) %>%
+    filter(complete.cases(.)) %>%
     ungroup
 
   # Record start time
