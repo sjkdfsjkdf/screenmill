@@ -6,15 +6,19 @@
 #' @param overwrite Should previous measurements be overwritten?
 #' @param save.plates Should cropped/rotated plates be saved? Defaults to \code{FALSE}.
 #' @param save.colonies Should cropped colonies be saved? Defaults to \code{TRUE}.
+#' @param max.background The maximum background intensity
 #'
 #' @importFrom readr read_csv write_csv
 #' @importFrom parallel mclapply detectCores
 #' @export
 
-measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T) {
+measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T, max.background = 0.5) {
 
   # Validate input
-  assert_that(is.dir(dir), is.flag(overwrite), is.flag(save.plates), is.flag(save.colonies))
+  assert_that(
+    is.dir(dir), is.flag(overwrite), is.flag(save.plates), is.flag(save.colonies),
+    is.number(max.background), max.background >= 0, max.background <=
+  )
 
   # Clean trailing slash from directory input
   dir <- gsub('/$', '', dir)
@@ -104,16 +108,12 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
             tr = fine[as.matrix(cbind(r, t))],
             bl = fine[as.matrix(cbind(l, b))],
             br = fine[as.matrix(cbind(r, b))],
-            bg = apply(cbind(tl, tr, bl, br), 1, mean, trim = 0.5)
+            background = apply(cbind(tl, tr, bl, br), 1, function(x) {
+              corners <- ifelse(x > max.background, NA, x)
+              if (all(is.na(corners))) corners <- max.background
+              mean(corners)
+            })
           )
-
-        # Predict background intensity via loess smoothing
-        grid$background <-
-          loess(
-            bg ~ colony_row + colony_col,
-            data = grid, span = 0.3, normalize = F, degree = 2
-          ) %>%
-          predict
 
         result    <- with(grid, measureColonies(fine, l, r, t, b, background))
         grid$size <- result$measurements
