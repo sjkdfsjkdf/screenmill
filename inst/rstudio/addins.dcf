@@ -1,4 +1,4 @@
 Name: Screenmill annotation
 Description: Launches annotation application
-Binding: annotate
+Binding: annotate_addin
 Interactive: true
