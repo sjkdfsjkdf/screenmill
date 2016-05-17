@@ -2,15 +2,15 @@
 % Please edit documentation in R/annotate.R
 \name{annotate}
 \alias{annotate}
-\title{RStudio Addin for annotating plate images}
+\title{Interactive plate annotation}
 \usage{
-annotate(dir, queries, strain_collections, strain_collection_keys, media,
-  treatments, temperatures = c(23, 27, 30, 33, 37), overwrite = FALSE,
-  update = TRUE)
+annotate(dir = ".", queries, strain_collections, strain_collection_keys,
+  media, treatments, temperatures = c(23, 27, 30, 33, 37),
+  overwrite = FALSE, update = TRUE, ...)
 }
 \arguments{
-\item{dir}{Directory of images to process. If missing the
-user will be prompted to choose a directory.}
+\item{dir}{Directory of images to process. Defaults to the current working
+directory.}
 
 \item{queries}{A dataframe of available queries. Uses
 \code{getOption('screenmill.queries')} by default (see Details).}
@@ -36,6 +36,8 @@ Defaults to \code{FALSE}.}
 
 \item{update}{Should annotation tables be updated? Defaults to \code{TRUE}.
 Ignored if overwrite is \code{TRUE}, or annotation is incomplete.}
+
+\item{...}{Currently unused.}
 }
 \description{
 This function launches a Shiny gadget that allows a user to record information

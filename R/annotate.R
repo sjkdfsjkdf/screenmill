@@ -1,10 +1,10 @@
-#' RStudio Addin for annotating plate images
+#' Interactive plate annotation
 #'
 #' This function launches a Shiny gadget that allows a user to record information
 #' about plate images for arrayed colony growth experiments.
 #'
-#' @param dir Directory of images to process. If missing the
-#'   user will be prompted to choose a directory.
+#' @param dir Directory of images to process. Defaults to the current working
+#'   directory.
 #' @param queries A dataframe of available queries. Uses
 #'   \code{getOption('screenmill.queries')} by default (see Details).
 #' @param strain_collections A dataframe of available strain
@@ -22,6 +22,7 @@
 #'   Defaults to \code{FALSE}.
 #' @param update Should annotation tables be updated? Defaults to \code{TRUE}.
 #'   Ignored if overwrite is \code{TRUE}, or annotation is incomplete.
+#' @param ... Currently unused.
 #'
 #' @details This application is provided to make annotation of plates in
 #' colony growth experiments easier and safer. It will try to warn, or prevent
@@ -86,14 +87,9 @@
 #' hot_table renderRHandsontable rHandsontableOutput hot_to_r
 #' @export
 
-annotate <- function(dir, queries, strain_collections, strain_collection_keys,
+annotate <- function(dir = '.', queries, strain_collections, strain_collection_keys,
                      media, treatments, temperatures = c(23, 27, 30, 33, 37),
-                     overwrite = FALSE, update = TRUE) {
-  # ---- Setup ----
-  if (missing(dir) && interactive()) {
-    message('Choose a file in the directory of images you wish to process.')
-    dir <- dirname(file.choose())
-  }
+                     overwrite = FALSE, update = TRUE, ...) {
 
   # Check arguments
   assert_that(is.dir(dir), is.flag(overwrite), is.flag(update), is.numeric(temperatures))
@@ -534,6 +530,11 @@ annotate <- function(dir, queries, strain_collections, strain_collection_keys,
 }
 
 
+annotate_addin <- function() {
+  message('Choose a file in the directory of images you wish to process.')
+  dir <- dirname(file.choose())
+  annotate(dir, overwrite = TRUE)
+}
 
 # ---- Utilities: screenmill ----
 image_data <- function(dir, ext =  '\\.tiff?$|\\.jpe?g$|\\.png$') {
