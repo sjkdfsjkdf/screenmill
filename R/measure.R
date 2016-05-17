@@ -53,6 +53,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
     arrange(row, column, replicate) %>%
     mutate(colony_num = 1:n()) %>%
     arrange(plate_id, colony_num) %>%
+    ungroup %>%
     select(
       plate_id,
       strain_collection_id, plate, row, column, replicate,
