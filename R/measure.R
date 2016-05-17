@@ -17,7 +17,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
   # Validate input
   assert_that(
     is.dir(dir), is.flag(overwrite), is.flag(save.plates), is.flag(save.colonies),
-    is.number(max.background), max.background >= 0, max.background <=
+    is.number(max.background), max.background >= 0, max.background <= 1
   )
 
   # Clean trailing slash from directory input
