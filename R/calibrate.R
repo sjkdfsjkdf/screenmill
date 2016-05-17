@@ -86,7 +86,7 @@ calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
   # Get paths to templates relative to dir, and corresponding plate positions
   annotation <-
     read_csv(plt_path) %>%
-    select(template, position, strain_collection_id, plate) %>%
+    select(template, group, position, strain_collection_id, plate) %>%
     mutate(template = paste(dir, template, sep = '/')) %>%
     distinct
 
@@ -392,7 +392,7 @@ add_missing_grid <- function(centers) {
   add <- lapply(missing, function(x) {
     start <- centers[x]
     stop  <- centers[x + 1]
-    seq(from = start + width, to = stop - (width * 0.75), by = width)
+    seq(from = start + width, to = max(start + width, stop - (width * 0.75)), by = width)
   })
   sort(c(unlist(add), centers))
 }
