@@ -1,4 +1,14 @@
-Name: Screenmill annotation
+Name: Screenmill annotate
 Description: Launches annotation application
 Binding: annotate_addin
+Interactive: true
+
+Name: Screenmill calibrate
+Description: Runs cropping and colony grid calibration in chosen directory
+Binding: calibrate_addin
+Interactive: true
+
+Name: Screenmill measure
+Description: Measures colonies
+Binding: measure_addin
 Interactive: true

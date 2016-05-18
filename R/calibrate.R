@@ -109,7 +109,11 @@ calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
   return(invisible(dir))
 }
 
-
+calibrate_addin <- function() {
+  message('Choose a file in the directory of images you wish to process.')
+  dir <- dirname(file.choose())
+  calibrate(dir, overwrite = TRUE)
+}
 
 # ---- Utilities: calibrate ---------------------------------------------------
 # Calibrate a single template image
@@ -393,7 +397,7 @@ locate_grid <- function(img, radius, key) {
 
 remove_out_of_step <- function(x) {
   step <- diff(x) / median(diff(x))
-  remove <- which(abs(step - round(step)) > 0.15) + 1
+  remove <- which(abs(step - round(step)) > 0.15)
   if (length(remove)) return(x[-remove]) else return(x)
 }
 

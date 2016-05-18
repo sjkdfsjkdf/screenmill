@@ -141,3 +141,8 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
   return(invisible(dir))
 }
 
+measure_addin <- function() {
+  message('Choose a file in the directory of images you wish to process.')
+  dir <- dirname(file.choose())
+  measure(dir, overwrite = TRUE)
+}
