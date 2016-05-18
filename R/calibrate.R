@@ -109,7 +109,11 @@ calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
   return(invisible(dir))
 }
 
-
+calibrate_addin <- function() {
+  message('Choose a file in the directory of images you wish to process.')
+  dir <- dirname(file.choose())
+  calibrate(dir, overwrite = TRUE)
+}
 
 # ---- Utilities: calibrate ---------------------------------------------------
 # Calibrate a single template image
@@ -338,8 +342,8 @@ locate_grid <- function(img, radius, key) {
     object_features(wat) %>%
     filter(eccen < 0.8) %>%   # remove weird objects
     mutate(
-      colony_row = cut(y, rows, labels = FALSE),
-      colony_col = cut(x, cols, labels = FALSE)
+      colony_row = cut(y, unique(rows), labels = FALSE),
+      colony_col = cut(x, unique(cols), labels = FALSE)
     )
 
   # If multiple objects are found in a grid location, choose largest object
