@@ -264,12 +264,17 @@ grid_angle <- function(img, rough, range, step) {
 
 fine_crop <- function(img, rotate, range, step, pad, invert) {
 
-  # Invert plate image, blur, threshold and label objects
-  if (invert) neg <- max(img) - img else neg <- img
+  # Invert if desired and set lowest intensity pixel to 0
+  if (invert) neg <- max(img) - img else neg <- img - min(img)
+  norm <- normalize(neg, inputRange = c(0.1, 0.8))
+
+  # Be aggressive at detecting objects, use watershed to split circular objects
+  thr <-
+    EBImage::gblur(norm, sigma = 6) %>%
+    EBImage::thresh(w = 20, h = 20, offset = 0.01)
   obj <-
-    EBImage::gblur(neg, sigma = 6) %>%
-    EBImage::thresh(w = 15, h = 15, offset = 0.05) %>%
-    EBImage::bwlabel()
+    EBImage::distmap(thr) %>%
+    EBImage::watershed()
 
   # Calculate object features, identify dubious objects and remove them
   feat <- object_features(obj)
@@ -281,23 +286,32 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
       eccen > 0.8 |
       ndist > mean(ndist) + (3 * mad(ndist))
     )
+  good  <- filter(feat, !(obj %in% crap$obj))
   clean <- EBImage::rmObjects(obj, crap$obj) > 0
 
+  # Brush size for dilation is a little more than the distance to the nearest object
+  # It must be an odd number
+  brush_size <- round(mean(good$ndist) + (5 * mad(good$ndist)))
+  brush_size <- brush_size + (brush_size %% 2 + 1)
+  dilated <- EBImage::dilate(clean, EBImage::makeBrush(brush_size))
+  box <- EBImage::fillHull(dilated)
+
   # Determine rotation angle and rotate plate
-  angle <- grid_angle(clean, rotate, range = range, step = step)
-  rotated <- EBImage::rotate(clean, angle)
+  angle <- grid_angle(box, rotate, range = range, step = step)
+  rotated <- EBImage::rotate(box, angle)
 
   # Split objects that cross rough grid lines
-  cols <- grid_breaks(rotated, 'col', thresh = 0.1)
-  rows <- grid_breaks(rotated, 'row', thresh = 0.1)
+  cols <- grid_breaks(rotated, 'col', thresh = 0.3)
+  rows <- grid_breaks(rotated, 'row', thresh = 0.3)
 
   # Construct fine crop data
   data_frame(
     rotate = angle,
-    left   = head(cols, 1) - pad[1],
-    right  = tail(cols, 1) + pad[2],
-    top    = head(rows, 1) - pad[3],
-    bot    = tail(rows, 1) + pad[4]
+    # Adjust edges based on previous dilation and user specified padding
+    left   = head(cols, 1) + (brush_size / 2) - pad[1],
+    right  = tail(cols, 1) - (brush_size / 2) + pad[2],
+    top    = head(rows, 1) + (brush_size / 2) - pad[3],
+    bot    = tail(rows, 1) - (brush_size / 2) + pad[4]
   ) %>%
     mutate_(
       # Limit edges if they excede dimensions of image after padding
