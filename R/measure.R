@@ -109,11 +109,13 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
             tr = fine[as.matrix(cbind(r, t))],
             bl = fine[as.matrix(cbind(l, b))],
             br = fine[as.matrix(cbind(r, b))],
+            # Background is average of corner pixels that are below max.background
             background = apply(cbind(tl, tr, bl, br), 1, function(x) {
               corners <- ifelse(x > max.background, NA, x)
-              if (all(is.na(corners))) corners <- max.background
-              mean(corners)
-            })
+              if (all(is.na(corners))) return(NA) else return(mean(corners, na.rm = T))
+            }),
+            # Replace NAs with mean background
+            background = ifelse(is.na(background), mean(background, na.rm = T), background)
           )
 
         result    <- with(grid, measureColonies(fine, l, r, t, b, background))
