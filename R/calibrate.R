@@ -408,7 +408,7 @@ add_missing_steps <- function(centers) {
   add <- lapply(missing, function(x) {
     start <- centers[x]
     stop  <- centers[x + 1]
-    seq(from = start + width, to = max(start + width, stop - (width * 0.75)), by = width)
+    seq(from = start + width, to = max(start + width, stop - (width * 0.6)), by = width)
   })
   sort(c(unlist(add), centers))
 }
