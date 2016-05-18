@@ -338,8 +338,8 @@ locate_grid <- function(img, radius, key) {
     object_features(wat) %>%
     filter(eccen < 0.8) %>%   # remove weird objects
     mutate(
-      colony_row = cut(y, rows, labels = FALSE),
-      colony_col = cut(x, cols, labels = FALSE)
+      colony_row = cut(y, unique(rows), labels = FALSE),
+      colony_col = cut(x, unique(cols), labels = FALSE)
     )
 
   # If multiple objects are found in a grid location, choose largest object
@@ -393,7 +393,7 @@ locate_grid <- function(img, radius, key) {
 
 remove_out_of_step <- function(x) {
   step <- diff(x) / median(diff(x))
-  remove <- which(abs(step - round(step)) > 0.15)
+  remove <- which(abs(step - round(step)) > 0.15) + 1
   if (length(remove)) return(x[-remove]) else return(x)
 }
 
