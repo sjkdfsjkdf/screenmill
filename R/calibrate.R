@@ -177,7 +177,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
       rotated <- EBImage::rotate(plate, finei$rotate)
       cropped <- with(finei, rotated[fine_l:fine_r, fine_t:fine_b])
 
-      result <- screenmill:::locate_grid(cropped, radius = 0.9, keyi)
+      result <- screenmill:::locate_grid(cropped, radius = 1, keyi)
 
       if (is.null(result)) {
         warning(
@@ -302,7 +302,7 @@ display_plate <- function(img, grid, template, group, position, text.color, grid
 #
 #' @importFrom tidyr complete
 
-locate_grid <- function(img, radius = 0.9, key) {
+locate_grid <- function(img, radius, key) {
 
   # Scale image for rough object detection
   rescaled <- EBImage::normalize(img, inputRange = c(0.1, 0.8))
@@ -315,14 +315,21 @@ locate_grid <- function(img, radius = 0.9, key) {
   wat <- EBImage::watershed(EBImage::distmap(thr))
 
   # Detect rough location of rows and columns
+
   cols <- grid_breaks(thr, 'col', thresh = 0.07, edges = 'mid')
   rows <- grid_breaks(thr, 'row', thresh = 0.07, edges = 'mid')
+  cols <- remove_out_of_step(cols)
+  rows <- remove_out_of_step(rows)
+  cols <- add_missing_steps(cols)
+  rows <- add_missing_steps(rows)
+  cols_expected <- length(unique(key$column))
+  rows_expected <- length(unique(key$row))
+  cols_expected <- cols_expected * round((length(cols) - 1) / cols_expected)
+  rows_expected <- rows_expected * round((length(rows) - 1) / rows_expected)
+  cols <- deal_with_edges(cols, n = length(cols) - cols_expected - 1, dim = nrow(wat))
+  rows <- deal_with_edges(rows, n = length(rows) - rows_expected - 1, dim = ncol(wat))
   col_centers <- ((cols + lag(cols)) / 2)[-1]
   row_centers <- ((rows + lag(rows)) / 2)[-1]
-  col_centers <- add_missing_grid(col_centers)
-  row_centers <- add_missing_grid(row_centers)
-  col_expected <- length(unique(key$column))
-  row_expected <- length(unique(key$row))
 
   if (length(col_centers) < 1 || length(row_centers) < 1) return(NULL)
 
@@ -384,8 +391,13 @@ locate_grid <- function(img, radius = 0.9, key) {
   return(selection %>% select(colony_row, colony_col, x, y, l, r, t, b))
 }
 
+remove_out_of_step <- function(x) {
+  step <- diff(x) / median(diff(x))
+  remove <- which(abs(step - round(step)) > 0.15)
+  if (length(remove)) return(x[-remove]) else return(x)
+}
 
-add_missing_grid <- function(centers) {
+add_missing_steps <- function(centers) {
   steps   <- diff(centers)
   width   <- median(steps)
   missing <- which(steps > width * 1.25)
@@ -395,6 +407,27 @@ add_missing_grid <- function(centers) {
     seq(from = start + width, to = max(start + width, stop - (width * 0.75)), by = width)
   })
   sort(c(unlist(add), centers))
+}
+
+deal_with_edges <- function(x, n, dim) {
+  if (n > 0) {
+    # Remove the break that is more "out-of-step" with grid
+    step <- abs(mean(diff(x)) - diff(x))
+    if (head(step, 1) > tail(step, 1)) x <- tail(x, -1) else x <- head(x, -1)
+    n <- n - 1
+    x <- deal_with_edges(x, n, dim) # recurse until n == 0
+  }
+  if (n < 0) {
+    # Add break to side furthest from edge
+    if ((head(x, 1) - 1) > (dim - tail(x, 1))) {
+      x <- c(max(1, head(x, 1) - mean(diff(x))), x)
+    } else {
+      x <- c(x, min(dim, tail(x, 1) + mean(diff(x))))
+    }
+    n <- n + 1
+    x <- deal_with_edges(x, n, dim) # recurse until n == 0
+  }
+  return(x)
 }
 
 # ---- Display Calibration: TODO ----------------------------------------------
