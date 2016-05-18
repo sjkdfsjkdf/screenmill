@@ -266,7 +266,7 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
 
   # Invert if desired and set lowest intensity pixel to 0
   if (invert) neg <- max(img) - img else neg <- img - min(img)
-  norm <- normalize(neg, inputRange = c(0.1, 0.8))
+  norm <- EBImage::normalize(neg, inputRange = c(0.1, 0.8))
 
   # Be aggressive at detecting objects, use watershed to split circular objects
   thr <-
