@@ -289,6 +289,15 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
   good  <- filter(feat, !(obj %in% crap$obj))
   clean <- EBImage::rmObjects(obj, crap$obj) > 0
 
+  # If fewer than 20 good objects then use default rotation and no fine-crop
+  if (nrow(good) < 20) {
+    default <-
+      data_frame(
+        rotate = rotate,
+        fine_l = 1, fine_r = ncol(clean), fine_t = 1, fine_b = nrow(clean)
+      )
+    return(default)
+  }
   # Brush size for dilation is a little more than the distance to the nearest object
   # It must be an odd number
   brush_size <- round(mean(good$ndist) + (5 * mad(good$ndist)))
