@@ -16,10 +16,12 @@
 #' boundaries when rough cropping. Defaults to \code{0.03}.
 #' @param invert Should the image be inverted? Defaults to \code{TRUE}.
 #' Recommended \code{TRUE} if colonies are darker than the plate.
-#' @param display Should cropped images be displayed for review?
-#' Defaults to \code{TRUE}.
 #' @param overwrite Should existing crop calibration be overwritten?
 #' Defaults to \code{FALSE}.
+#' @param display Should cropped images be displayed for review?
+#' Defaults to \code{TRUE}.
+#' @param save_plate Should the calibrated plate be saved rather than
+#' displayed (useful when calibrating many plates)? Defaults to \code{!display}.
 #'
 #' @details
 #' Crop calibration procedes through the following 3 steps:
@@ -49,16 +51,16 @@
 
 calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
                       thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
-                      fine_pad = c(5, 5, 5, 5), display = TRUE,
-                      overwrite = FALSE) {
+                      fine_pad = c(5, 5, 5, 5), overwrite = FALSE,
+                      display = TRUE, save_plate = !display) {
 
   # Save plot parameter defaults. Only necessary for bug in EBImage < 4.13.7
-  if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
+  if (display || save_plate) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
 
   # Validate input
   assert_that(
     is.dir(dir), is.number(rotate), is.number(range), is.number(step),
-    is.number(thresh), is.flag(invert), is.flag(display),
+    is.number(thresh), is.flag(invert), is.flag(display), is.flag(save_plate),
     is.flag(overwrite), is.numeric(rough_pad), length(rough_pad) == 4,
     is.numeric(fine_pad), length(fine_pad) == 4
   )
@@ -102,7 +104,7 @@ calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
     templates, calibrate_template,
     # Arguments
     annotation, key, thresh, invert, rough_pad, fine_pad, rotate, range, step,
-    display, crp_path, grd_path
+    display, crp_path, grd_path, save_plate
   )
 
   message('Finished calibration in ', format(round(Sys.time() - time, 2)))
@@ -134,7 +136,7 @@ calibrate_addin <- function() {
 #' @importFrom readr write_csv
 
 calibrate_template <- function(template, annotation, key, thresh, invert, rough_pad,
-                               fine_pad, rotate, range, step, display, crp, grd) {
+                               fine_pad, rotate, range, step, display, crp, grd, save_plate) {
 
   # Read image in greyscale format
   message(basename(template), ': reading image and cropping plates')
@@ -253,7 +255,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
         }
       }
 
-      if (display) display_plate(cropped, result, template, group, p, text.color = 'red', grid.color = 'blue')
+      if (display || save_plate) display_plate(cropped, result, template, group, p, text.color = 'red', grid.color = 'blue', save_plate)
 
       return(result)
     }) %>%
@@ -281,7 +283,21 @@ display_rough_crop <- function(img, rough, color) {
   with(rough, text(plate_x, plate_y, position, col = color))
 }
 
-display_plate <- function(img, grid, template, group, position, text.color, grid.color) {
+display_plate <- function(img, grid, template, group, position, text.color, grid.color, save_plate) {
+
+  if (save_plate) {
+    dir <- file.path(dirname(template), 'calibration', fsep = '/')
+    if (!dir.exists(dir)) dir.create(dir)
+    file <-
+      paste0(
+        stringr::str_pad(group, 3, side = 'left', pad = 0), '-',
+        stringr::str_pad(position, 3, side = 'left', pad = 0), '-',
+        gsub('\\.[^\\.]*$', '', basename(template)),
+        '.png'
+      )
+    png(file.path(dir, file, fsep = '/'), width = 900, height = 600, bg = 'transparent')
+  }
+
   EBImage::display(img, method = 'raster')
 
   if (!is.null(grid)) {
@@ -294,6 +310,8 @@ display_plate <- function(img, grid, template, group, position, text.color, grid
   x <- nrow(img) / 2
   y <- ncol(img) / 2
   text(x, y, labels = paste(basename(template), paste('Group:', group), paste('Position:', position), sep = '\n'), col = text.color, cex = 1.5)
+
+  if (save_plate) dev.off()
 }
 
 # ---- Locate Colony Grid -----------------------------------------------------
