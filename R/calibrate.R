@@ -335,6 +335,9 @@ locate_grid <- function(img, radius, key) {
   rows <- remove_out_of_step(rows)
   cols <- add_missing_steps(cols)
   rows <- add_missing_steps(rows)
+
+  if (length(cols) < 2 || length(rows) < 2) return(NULL)
+
   cols <- deal_with_edges(cols, n = length(cols) - cols_expected - 1, dim = nrow(wat))
   rows <- deal_with_edges(rows, n = length(rows) - rows_expected - 1, dim = ncol(wat))
   col_centers <- ((cols + lag(cols)) / 2)[-1]
