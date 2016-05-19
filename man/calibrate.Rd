@@ -6,7 +6,8 @@
 \usage{
 calibrate(dir = ".", rotate = 90, range = 2, step = 0.2,
   thresh = 0.03, invert = TRUE, rough_pad = c(0, 0, 0, 0),
-  fine_pad = c(5, 5, 5, 5), display = TRUE, overwrite = FALSE)
+  fine_pad = c(5, 5, 5, 5), overwrite = FALSE, display = TRUE,
+  save_plate = !display)
 }
 \arguments{
 \item{dir}{Directory of images to process.}
@@ -27,11 +28,14 @@ boundaries when rough cropping. Defaults to \code{0.03}.}
 \item{invert}{Should the image be inverted? Defaults to \code{TRUE}.
 Recommended \code{TRUE} if colonies are darker than the plate.}
 
+\item{overwrite}{Should existing crop calibration be overwritten?
+Defaults to \code{FALSE}.}
+
 \item{display}{Should cropped images be displayed for review?
 Defaults to \code{TRUE}.}
 
-\item{overwrite}{Should existing crop calibration be overwritten?
-Defaults to \code{FALSE}.}
+\item{save_plate}{Should the calibrated plate be saved rather than
+displayed (useful when calibrating many plates)? Defaults to \code{!display}.}
 }
 \description{
 This function calibrates plate cropping and rotation parameters for an image
