@@ -319,17 +319,22 @@ locate_grid <- function(img, radius, key) {
   wat <- EBImage::watershed(EBImage::distmap(thr))
 
   # Detect rough location of rows and columns
-
   cols <- grid_breaks(thr, 'col', thresh = 0.07, edges = 'mid')
   rows <- grid_breaks(thr, 'row', thresh = 0.07, edges = 'mid')
+  cols_expected <- length(unique(key$column))
+  rows_expected <- length(unique(key$row))
+  multiplier <- max(
+    round((length(cols) - 1) / cols_expected),
+    round((length(rows) - 1) / rows_expected)
+  )
+  cols_expected <- cols_expected * multiplier
+  rows_expected <- rows_expected * multiplier
+
+  # Clean up detected rows and columns
   cols <- remove_out_of_step(cols)
   rows <- remove_out_of_step(rows)
   cols <- add_missing_steps(cols)
   rows <- add_missing_steps(rows)
-  cols_expected <- length(unique(key$column))
-  rows_expected <- length(unique(key$row))
-  cols_expected <- cols_expected * round((length(cols) - 1) / cols_expected)
-  rows_expected <- rows_expected * round((length(rows) - 1) / rows_expected)
   cols <- deal_with_edges(cols, n = length(cols) - cols_expected - 1, dim = nrow(wat))
   rows <- deal_with_edges(rows, n = length(rows) - rows_expected - 1, dim = ncol(wat))
   col_centers <- ((cols + lag(cols)) / 2)[-1]
@@ -397,8 +402,13 @@ locate_grid <- function(img, radius, key) {
 
 remove_out_of_step <- function(x) {
   step <- diff(x) / median(diff(x))
-  remove <- which(abs(step - round(step)) > 0.15)
-  if (length(remove)) return(x[-remove]) else return(x)
+  remove <- which(abs(step - round(step)) > 0.2)
+  if (length(remove)) {
+    x <- x[-remove]
+    remove_out_of_step(x) # recursively remove until everything is in step
+  } else {
+    return(x)
+  }
 }
 
 add_missing_steps <- function(centers) {
