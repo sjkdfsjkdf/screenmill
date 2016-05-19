@@ -369,7 +369,7 @@ locate_grid <- function(img, radius, key) {
     mutate(
       # If missing, use estimated center
       y = ifelse(is.na(y), row_centers[colony_row], y),
-      y = round(predict(smooth.spline(colony_col, y), colony_col)[[2]])
+      y = if (n() < 10) y else round(predict(smooth.spline(colony_col, y), colony_col)[[2]])
     ) %>%
     # Determine column locations
     group_by(colony_col) %>%
@@ -377,7 +377,7 @@ locate_grid <- function(img, radius, key) {
     mutate(
       # If missing, use estimated center
       x = ifelse(is.na(x), col_centers[colony_col], x),
-      x = round(predict(smooth.spline(colony_row, x), colony_row)[[2]])
+      x = if (n() < 10) y else round(predict(smooth.spline(colony_row, x), colony_row)[[2]])
     ) %>%
     ungroup
 
