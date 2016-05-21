@@ -43,7 +43,8 @@ review <- function(dir = '.') {
       fine = NULL,
       this_grid = NULL,
       this_revi = NULL,
-      image = NULL
+      image = NULL,
+      session = list()
     )
 
     observeEvent(vals$plate, {
@@ -55,7 +56,9 @@ review <- function(dir = '.') {
         this_crop <- crop[this_plate, ]
         vals$this_grid <- vals$grid[vals$grid$template == this_crop$template & vals$grid$position == this_crop$position, ]
         vals$this_revi <- vals$revi[vals$revi$template == this_crop$template & vals$revi$position == this_crop$position, ]
-        if (is.null(vals$keeprows)) vals$keeprows <- !vals$this_revi$excluded
+        if (is.null(vals$keeprows)) {
+          vals$keeprows <- !vals$this_revi$excluded
+        }
 
         # Process image
         if (vals$plate == 1 || this_crop$template != last_crop$template) {
@@ -77,11 +80,7 @@ review <- function(dir = '.') {
       with(keep, segments(l, b, r, b, col = 'blue'))
       with(keep, segments(l, t, l, b, col = 'blue'))
       with(keep, segments(r, t, r, b, col = 'blue'))
-      # with(exclude, segments(l, t, r, t, col = 'red'))
-      # with(exclude, segments(l, b, r, b, col = 'red'))
-      # with(exclude, segments(l, t, l, b, col = 'red'))
-      # with(exclude, segments(r, t, r, b, col = 'red'))
-      with(exclude, points(x, y, pch = 4, col = 'red'))
+      with(exclude, points(x, y, pch = 4, cex = 1.5, col = 'red'))
     })
 
     # Toggle points that are brushed, when button is clicked
@@ -110,14 +109,25 @@ review <- function(dir = '.') {
 
     # On Click Next/Previous --------------------------------------------------
     observeEvent(input$next_plate, {
+      vals$session[[vals$plate]] <- vals$keeprows
       n <- vals$plate + 1
-      if (n > max(plate)) stopApp()
       vals$plate <- n
-      vals$keeprows <- NULL
+      if (length(vals$session) >= n) {
+        vals$keeprows <- vals$session[[n]]
+      } else {
+        vals$keeprows <- NULL
+      }
     })
 
     observeEvent(input$back_plate, {
-      vals$plate <- max(vals$plate - 1, min(plate))
+      vals$session[[vals$plate]] <- vals$keeprows
+      n <- max(vals$plate - 1, min(plate))
+      vals$plate <- n
+      if (length(vals$session) >= n) {
+        vals$keeprows <- vals$session[[n]]
+      } else {
+        vals$keeprows <- NULL
+      }
     })
   }
 
@@ -131,24 +141,25 @@ review <- function(dir = '.') {
     miniContentPanel(
       plotOutput(
         'plot1',
+        height = '450px',
         brush = 'brush1',
         dblclick = 'click1'
       ),
       p(),
       fluidRow(
-        column(width = 12, align = 'center',
-               actionButton('exclude_toggle', 'Toggle selection',
-                            style = "color: white; background-color: #62b97f;"),
-               actionButton('exclude_reset', 'Reset'),
-               actionButton('exclude_all', 'Exclude all'),
-               actionButton('keep_all', 'Keep all')
+        column(
+          width = 12, align = 'center',
+          actionButton('exclude_toggle', 'Toggle selection', class = 'btn btn-success action-button'),
+          actionButton('exclude_reset', 'Reset'),
+          actionButton('exclude_all', 'Exclude all'),
+          actionButton('keep_all', 'Keep all')
         )
       )
     )
   )
 
   # ---- Run ----
-  runGadget(ui, server, viewer = dialogViewer('Screenmill Review', width = 1100, height = 1000))
+  runGadget(ui, server, viewer = dialogViewer('Screenmill Review', width = 1000, height = 1000))
 }
 
 review()
