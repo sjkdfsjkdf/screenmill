@@ -1,7 +1,4 @@
-library(shiny)
-library(miniUI)
-library(assertthat)
-library(dplyr)
+#' @export
 
 review <- function(dir = '.') {
 
@@ -27,34 +24,35 @@ review <- function(dir = '.') {
 
   grouping <- paste(init$template, init$position)
   exit <- length(unique(grouping))
+  init_list <- init %>% split(grouping)
 
   # ---- Server ----
   server <- function(input, output, session) {
 
-    # For storing which rows have been excluded
-    vals <- reactiveValues(
-      init  = init %>% split(grouping),
-      final = init %>% split(grouping),
+    # Reactive values shared between observers --------------------------------
+    react <- reactiveValues(
+      init  = init_list,
+      final = init_list,
       image = NULL,
       last = NULL,
       fine = NULL,
+      exclude_border = 0,
       replot = 1
     )
 
-    # On Click Next/Previous --------------------------------------------------
-
-
+    # On Click Save, write to CSV and quit ------------------------------------
     observeEvent(input$save, {
-      bind_rows(vals$final) %>%
+      bind_rows(react$final) %>%
         select(template:b, excluded) %>%
         readr::write_csv(grid_path)
       stopApp(invisible(dir))
     })
 
+    # On next, increment plate, write to CSV and quit if end is reached -------
     observeEvent(input$next_plate, {
       n <- input$plate + 1
       if (n > exit) {
-        bind_rows(vals$final) %>%
+        bind_rows(react$final) %>%
           select(template:b, excluded) %>%
           readr::write_csv(grid_path)
         stopApp(invisible(dir))
@@ -62,44 +60,51 @@ review <- function(dir = '.') {
       updateSliderInput(session, 'plate', value = n)
     })
 
+    # On back, decrement plate, but don't go below 1 --------------------------
     observeEvent(input$back_plate, {
       updateSliderInput(session, 'plate', value = max(input$plate - 1, 1))
     })
 
+    # Update variables for this plate -----------------------------------------
     grid <- reactive({
-      vals$final[[input$plate]]
+      react$final[[input$plate]]
     })
 
     observeEvent(input$plate, {
       withProgress(message = 'Reading image ...', value = 0, {
-        if (!is.null(vals$last)) {
-          previous <- unique(vals$final[[vals$last]]$template)
+        react$exclude_border <- 0
+        if (!is.null(react$last)) {
+          previous <- unique(react$final[[react$last]]$template)
         } else {
           previous <- NULL
         }
-        vals$last <- input$plate
+        react$last <- input$plate
         crop <- distinct(grid()[, names(crop)])
 
-        # Process image
+        # Read raw image if different from previous plate
         if (is.null(previous) || crop$template != previous) {
-          vals$image   <- EBImage::readImage(file.path(dir, crop$template, fsep = '/'))
+          react$image   <- EBImage::readImage(file.path(dir, crop$template, fsep = '/'))
         }
-        rough   <- with(crop, vals$image[ rough_l:rough_r, rough_t:rough_b ])
+        # Generate plate image from raw image
+        rough   <- with(crop, react$image[ rough_l:rough_r, rough_t:rough_b ])
         rotated <- EBImage::rotate(rough, crop$rotate)
         fine    <- with(crop, rotated[ fine_l:fine_r, fine_t:fine_b ])
-        if (crop$invert) vals$fine <- 1 - fine else vals$fine <- fine
-        vals$replot <- vals$replot + 1
+        if (crop$invert) react$fine <- 1 - fine else react$fine <- fine
+
+        # Trigger re-plot
+        react$replot <- react$replot + 1
       })
     })
 
-    observeEvent(vals$replot, {
+    # Plot only when triggered by change in value to replot -------------------
+    observeEvent(react$replot, {
       output$plot1 <- renderPlot({
-        vals$replot
+        react$replot
 
         # Plot the kept and excluded points as two separate data sets
         keep    <- grid()[!grid()$excluded, , drop = FALSE]
         exclude <- grid()[ grid()$excluded, , drop = FALSE]
-        EBImage::display(vals$fine, method = 'raster')
+        EBImage::display(react$fine, method = 'raster')
         with(keep, segments(l, t, r, t, col = 'blue'))
         with(keep, segments(l, b, r, b, col = 'blue'))
         with(keep, segments(l, t, l, b, col = 'blue'))
@@ -108,33 +113,50 @@ review <- function(dir = '.') {
       })
     })
 
-    # Toggle points that are brushed, when button is clicked
+    # Toggle points that are brushed, when button is clicked ------------------
     observeEvent(input$exclude_toggle, {
       result <- brushedPoints(grid(), input$brush1, xvar = 'x', yvar = 'y', allRows = TRUE)
-      vals$final[[input$plate]]$excluded <- !xor(!grid()$excluded, result$selected_)
-      vals$replot <- vals$replot + 1
+      react$final[[input$plate]]$excluded <- !xor(!grid()$excluded, result$selected_)
+      react$replot <- react$replot + 1  # Trigger re-plot
     })
 
+    # Toggle points that are double clicked -----------------------------------
     observeEvent(input$click1, {
       result <- nearPoints(grid(), input$click1, xvar = 'x', yvar = 'y', allRows = TRUE)
-      vals$final[[input$plate]]$excluded <- !xor(!grid()$excluded, result$selected_)
-      vals$replot <- vals$replot + 1
+      react$final[[input$plate]]$excluded <- !xor(!grid()$excluded, result$selected_)
+      react$replot <- react$replot + 1  # Trigger re-plot
     })
 
-    # Reset all points
+    # Reset all points to original state when app was started -----------------
     observeEvent(input$exclude_reset, {
-      vals$final[[input$plate]]$excluded <- vals$init[[input$plate]]$excluded
-      vals$replot <- vals$replot + 1
+      react$final[[input$plate]]$excluded <- react$init[[input$plate]]$excluded
+      react$replot <- react$replot + 1  # Trigger re-plot
     })
 
+    # Exclude all points ------------------------------------------------------
     observeEvent(input$exclude_all, {
-      vals$final[[input$plate]]$excluded <- TRUE
-      vals$replot <- vals$replot + 1
+      react$final[[input$plate]]$excluded <- TRUE
+      react$replot <- react$replot + 1  # Trigger re-plot
     })
 
+    # Keep all points ---------------------------------------------------------
     observeEvent(input$keep_all, {
-      vals$final[[input$plate]]$excluded <- FALSE
-      vals$replot <- vals$replot + 1
+      react$final[[input$plate]]$excluded <- FALSE
+      react$replot <- react$replot + 1  # Trigger re-plot
+    })
+
+    # Exclude Border ---------------------------------------------------------
+    observeEvent(input$exclude_border, {
+      react$exclude_border <- react$exclude_border + 1
+      n <- react$exclude_border
+      colony_row <- grid()$colony_row
+      colony_col <- grid()$colony_col
+      rows <- sort(unique(colony_row))
+      cols <- sort(unique(colony_col))
+      rows <- c(head(rows, n), tail(rows, n))
+      cols <- c(head(cols, n), tail(cols, n))
+      react$final[[input$plate]]$excluded[colony_row %in% rows | colony_col %in% cols] <- TRUE
+      react$replot <- react$replot + 1  # Trigger re-plot
     })
   }
 
@@ -168,7 +190,8 @@ review <- function(dir = '.') {
           actionButton('exclude_toggle', 'Toggle selection', class = 'btn btn-success action-button'),
           actionButton('exclude_reset', 'Reset'),
           actionButton('exclude_all', 'Exclude all'),
-          actionButton('keep_all', 'Keep all')
+          actionButton('keep_all', 'Keep all'),
+          actionButton('exclude_border', 'Exclude Border')
         )
       ),
       fluidRow(
@@ -187,4 +210,8 @@ review <- function(dir = '.') {
   runGadget(ui, server, viewer = dialogViewer('Screenmill Review', width = 850, height = 1000))
 }
 
-review()
+review_addin <- function() {
+  message('Choose a file in the directory of images you wish to process.')
+  dir <- dirname(file.choose())
+  review(dir)
+}
