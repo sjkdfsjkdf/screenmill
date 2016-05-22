@@ -11,123 +11,130 @@ review <- function(dir = '.') {
   dir <- gsub('/$', '', dir)
   crop_path <- file.path(dir, 'screenmill-calibration-crop.csv', fsep = '/')
   grid_path <- file.path(dir, 'screenmill-calibration-grid.csv', fsep = '/')
-  revi_path <- file.path(dir, 'screenmill-review.csv', fsep = '/')
 
   # All necessary details to display 1 plate
   if (!(file.exists(crop_path) & file.exists(grid_path))) {
     stop('Please annotate and calibrate before reviewing.')
-  } else {
-    crop <- readr::read_csv(crop_path)
-    grid <- readr::read_csv(grid_path)
+  }
+  crop <- readr::read_csv(crop_path)
+  init <-
+    readr::read_csv(grid_path) %>%
+    left_join(crop, by = c('template', 'position'))
+
+  if (!has_name(init, 'excluded')) {
+    init <- mutate(init, excluded = FALSE)
   }
 
-  if (!file.exists(revi_path)) {
-    revi <-
-      grid %>%
-      select(template, position, group, colony_row, colony_col, x, y) %>%
-      mutate(excluded = FALSE)
-  } else {
-    revi <- readr::read_csv(revi_path)
-  }
-  plate <- 1:nrow(crop)
+  grouping <- paste(init$template, init$position)
+  exit <- length(unique(grouping))
 
   # ---- Server ----
-  server <- function(input, output) {
+  server <- function(input, output, session) {
 
     # For storing which rows have been excluded
     vals <- reactiveValues(
-      revi = revi,
-      grid = grid,
-      keeprows = NULL,
-      plate = 1,
-      fine = NULL,
-      this_grid = NULL,
-      this_revi = NULL,
+      init  = init %>% split(grouping),
+      final = init %>% split(grouping),
       image = NULL,
-      session = list()
+      last = NULL,
+      fine = NULL,
+      replot = 1
     )
 
-    observeEvent(vals$plate, {
+    # On Click Next/Previous --------------------------------------------------
+
+
+    observeEvent(input$save, {
+      bind_rows(vals$final) %>%
+        select(template:b, excluded) %>%
+        readr::write_csv(grid_path)
+      stopApp(invisible(dir))
+    })
+
+    observeEvent(input$next_plate, {
+      n <- input$plate + 1
+      if (n > exit) {
+        bind_rows(vals$final) %>%
+          select(template:b, excluded) %>%
+          readr::write_csv(grid_path)
+        stopApp(invisible(dir))
+      }
+      updateSliderInput(session, 'plate', value = n)
+    })
+
+    observeEvent(input$back_plate, {
+      updateSliderInput(session, 'plate', value = max(input$plate - 1, 1))
+    })
+
+    grid <- reactive({
+      vals$final[[input$plate]]
+    })
+
+    observeEvent(input$plate, {
       withProgress(message = 'Reading image ...', value = 0, {
-        # Get data for this plate
-        this_plate <- vals$plate
-        last_plate <- max(this_plate - 1, min(plate))
-        last_crop <- crop[last_plate, ]
-        this_crop <- crop[this_plate, ]
-        vals$this_grid <- vals$grid[vals$grid$template == this_crop$template & vals$grid$position == this_crop$position, ]
-        vals$this_revi <- vals$revi[vals$revi$template == this_crop$template & vals$revi$position == this_crop$position, ]
-        if (is.null(vals$keeprows)) {
-          vals$keeprows <- !vals$this_revi$excluded
+        if (!is.null(vals$last)) {
+          previous <- unique(vals$final[[vals$last]]$template)
+        } else {
+          previous <- NULL
         }
+        vals$last <- input$plate
+        crop <- distinct(grid()[, names(crop)])
 
         # Process image
-        if (vals$plate == 1 || this_crop$template != last_crop$template) {
-          vals$image <- EBImage::readImage(file.path(dir, this_crop$template, fsep = '/'))
+        if (is.null(previous) || crop$template != previous) {
+          vals$image   <- EBImage::readImage(file.path(dir, crop$template, fsep = '/'))
         }
-        rough   <- with(this_crop, vals$image[ rough_l:rough_r, rough_t:rough_b ])
-        rotated <- EBImage::rotate(rough, this_crop$rotate)
-        fine    <- with(this_crop, rotated[ fine_l:fine_r, fine_t:fine_b ])
-        if (this_crop$invert) vals$fine <- 1 - fine else vals$fine <- fine
+        rough   <- with(crop, vals$image[ rough_l:rough_r, rough_t:rough_b ])
+        rotated <- EBImage::rotate(rough, crop$rotate)
+        fine    <- with(crop, rotated[ fine_l:fine_r, fine_t:fine_b ])
+        if (crop$invert) vals$fine <- 1 - fine else vals$fine <- fine
+        vals$replot <- vals$replot + 1
       })
     })
 
-    output$plot1 <- renderPlot({
-      # Plot the kept and excluded points as two separate data sets
-      keep    <- vals$this_grid[ vals$keeprows, , drop = FALSE]
-      exclude <- vals$this_grid[!vals$keeprows, , drop = FALSE]
-      EBImage::display(vals$fine, method = 'raster')
-      with(keep, segments(l, t, r, t, col = 'blue'))
-      with(keep, segments(l, b, r, b, col = 'blue'))
-      with(keep, segments(l, t, l, b, col = 'blue'))
-      with(keep, segments(r, t, r, b, col = 'blue'))
-      with(exclude, points(x, y, pch = 4, cex = 1.5, col = 'red'))
+    observeEvent(vals$replot, {
+      output$plot1 <- renderPlot({
+        vals$replot
+
+        # Plot the kept and excluded points as two separate data sets
+        keep    <- grid()[!grid()$excluded, , drop = FALSE]
+        exclude <- grid()[ grid()$excluded, , drop = FALSE]
+        EBImage::display(vals$fine, method = 'raster')
+        with(keep, segments(l, t, r, t, col = 'blue'))
+        with(keep, segments(l, b, r, b, col = 'blue'))
+        with(keep, segments(l, t, l, b, col = 'blue'))
+        with(keep, segments(r, t, r, b, col = 'blue'))
+        with(exclude, points(x, y, pch = 4, cex = 1.5, col = 'red'))
+      })
     })
 
     # Toggle points that are brushed, when button is clicked
     observeEvent(input$exclude_toggle, {
-      result <- brushedPoints(vals$this_revi, input$brush1, xvar = 'x', yvar = 'y', allRows = TRUE)
-      vals$keeprows <- xor(vals$keeprows, result$selected_)
+      result <- brushedPoints(grid(), input$brush1, xvar = 'x', yvar = 'y', allRows = TRUE)
+      vals$final[[input$plate]]$excluded <- !xor(!grid()$excluded, result$selected_)
+      vals$replot <- vals$replot + 1
     })
 
     observeEvent(input$click1, {
-      result <- nearPoints(vals$this_revi, input$click1, xvar = 'x', yvar = 'y', allRows = TRUE)
-      vals$keeprows <- xor(vals$keeprows, result$selected_)
+      result <- nearPoints(grid(), input$click1, xvar = 'x', yvar = 'y', allRows = TRUE)
+      vals$final[[input$plate]]$excluded <- !xor(!grid()$excluded, result$selected_)
+      vals$replot <- vals$replot + 1
     })
 
     # Reset all points
     observeEvent(input$exclude_reset, {
-      vals$keeprows <- !vals$this_revi$excluded
+      vals$final[[input$plate]]$excluded <- vals$init[[input$plate]]$excluded
+      vals$replot <- vals$replot + 1
     })
 
     observeEvent(input$exclude_all, {
-      vals$keeprows <- rep(FALSE, length(vals$this_revi$excluded))
+      vals$final[[input$plate]]$excluded <- TRUE
+      vals$replot <- vals$replot + 1
     })
 
     observeEvent(input$keep_all, {
-      vals$keeprows <- rep(TRUE, length(vals$this_revi$excluded))
-    })
-
-    # On Click Next/Previous --------------------------------------------------
-    observeEvent(input$next_plate, {
-      vals$session[[vals$plate]] <- vals$keeprows
-      n <- vals$plate + 1
-      vals$plate <- n
-      if (length(vals$session) >= n) {
-        vals$keeprows <- vals$session[[n]]
-      } else {
-        vals$keeprows <- NULL
-      }
-    })
-
-    observeEvent(input$back_plate, {
-      vals$session[[vals$plate]] <- vals$keeprows
-      n <- max(vals$plate - 1, min(plate))
-      vals$plate <- n
-      if (length(vals$session) >= n) {
-        vals$keeprows <- vals$session[[n]]
-      } else {
-        vals$keeprows <- NULL
-      }
+      vals$final[[input$plate]]$excluded <- FALSE
+      vals$replot <- vals$replot + 1
     })
   }
 
@@ -135,15 +142,24 @@ review <- function(dir = '.') {
   ui <- miniPage(
     gadgetTitleBar(
       'Review Colony Grids',
-      left  = miniTitleBarButton('back_plate', 'Previous Plate'),
-      right = miniTitleBarButton('next_plate', 'Next Plate', primary = TRUE)
+      right = miniTitleBarButton('save', 'Save', primary = TRUE)
     ),
     miniContentPanel(
-      plotOutput(
-        'plot1',
-        height = '450px',
-        brush = 'brush1',
-        dblclick = 'click1'
+      fluidRow(
+        column(width = 1, align = 'right',
+          actionButton('back_plate', '', icon = icon('angle-left'), style = 'height: 410px;')
+        ),
+        column(width = 10, align = 'center',
+          plotOutput(
+            'plot1',
+            height = '410px',
+            brush = 'brush1',
+            dblclick = 'click1'
+          )
+        ),
+        column(width = 1, align = 'left',
+          actionButton('next_plate', '', icon = icon('angle-right'), style = 'height: 410px;')
+        )
       ),
       p(),
       fluidRow(
@@ -154,12 +170,21 @@ review <- function(dir = '.') {
           actionButton('exclude_all', 'Exclude all'),
           actionButton('keep_all', 'Keep all')
         )
+      ),
+      fluidRow(
+        column(
+          width = 12, align = 'center',
+          sliderInput(
+            'plate', '', min = 1, max = exit, value = 1,
+            step = 1, round = TRUE, ticks = TRUE, width = '95%'
+          )
+        )
       )
     )
   )
 
   # ---- Run ----
-  runGadget(ui, server, viewer = dialogViewer('Screenmill Review', width = 1000, height = 1000))
+  runGadget(ui, server, viewer = dialogViewer('Screenmill Review', width = 850, height = 1000))
 }
 
 review()
