@@ -8,7 +8,12 @@ Description: Runs cropping and colony grid calibration in chosen directory
 Binding: calibrate_addin
 Interactive: true
 
-Name: 3) Screenmill measure
+Name: 3) Screenmill review
+Description: Launches colony review application
+Binding: review_addin
+Interactive: true
+
+Name: 4) Screenmill measure
 Description: Measures colonies
 Binding: measure_addin
 Interactive: true
