@@ -55,7 +55,7 @@ calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
                       display = TRUE, save_plate = !display) {
 
   # Save plot parameter defaults. Only necessary for bug in EBImage < 4.13.7
-  if (display || save_plate) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
+  if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
 
   # Validate input
   assert_that(
