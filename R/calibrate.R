@@ -55,7 +55,7 @@ calibrate <- function(dir = '.', rotate = 90, range = 2, step = 0.2,
                       display = TRUE, save_plate = !display) {
 
   # Save plot parameter defaults. Only necessary for bug in EBImage < 4.13.7
-  if (display || save_plate) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
+  if (display) { old <- par(no.readonly = TRUE); on.exit(par(old)) }
 
   # Validate input
   assert_that(
@@ -423,7 +423,7 @@ locate_grid <- function(img, radius, key) {
 
 remove_out_of_step <- function(x) {
   step <- diff(x) / median(diff(x))
-  remove <- which(abs(step - round(step)) > 0.2)
+  remove <- which(abs(step - round(step)) > 0.2) + 1
   if (length(remove)) {
     x <- x[-remove]
     remove_out_of_step(x) # recursively remove until everything is in step
