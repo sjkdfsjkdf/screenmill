@@ -309,9 +309,25 @@ fine_crop <- function(img, rotate, range, step, pad, invert) {
   angle <- grid_angle(box, rotate, range = range, step = step)
   rotated <- EBImage::rotate(box, angle)
 
-  # Split objects that cross rough grid lines
+  # Identify edges of grid
   cols <- grid_breaks(rotated, 'col', thresh = 0.3)
+  if (length(cols) == 0L) cols <- c(1, nrow(rotated)) # don't crop
+  if (length(cols) == 1L) {
+    if (cols > nrow(rotated) / 2) {
+      cols <- c(1, cols)
+    } else {
+      cols <- c(cols, nrow(rotated))
+    }
+  }
   rows <- grid_breaks(rotated, 'row', thresh = 0.3)
+  if (length(rows) == 0L) rows <- c(1, ncol(rotated)) # don't crop
+  if (length(rows) == 1L) {
+    if (rows > ncol(rotated) / 2) {
+      rows <- c(1, rows)
+    } else {
+      rows <- c(rows, ncol(rotated))
+    }
+  }
 
   # Construct fine crop data
   data_frame(

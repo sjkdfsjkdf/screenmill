@@ -423,7 +423,7 @@ locate_grid <- function(img, radius, key) {
 
 remove_out_of_step <- function(x) {
   step <- diff(x) / median(diff(x))
-  remove <- which(abs(step - round(step)) > 0.2)
+  remove <- which(abs(step - round(step)) > 0.2) + 1
   if (length(remove)) {
     x <- x[-remove]
     remove_out_of_step(x) # recursively remove until everything is in step
