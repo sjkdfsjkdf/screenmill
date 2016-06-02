@@ -179,24 +179,29 @@ annotate <- function(dir = '.', queries, strain_collections, strain_collection_k
 
       # If desired, update CSVs with current annotation tables
       if (update) {
+        keep_collection_ids <- c('', vars$tbl$strain_collection_id)
         strain_collections %>%
-          filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
+          filter(strain_collection_id %in% keep_collection_ids) %>%
           write_csv(file.path(dir, 'screenmill-collections.csv'))
 
+        keep_query_ids <- c('', vars$tbl$query_id)
         queries %>%
-          filter(query_id %in% c('', vars$tbl$query_id)) %>%
+          filter(query_id %in% keep_query_ids) %>%
           write_csv(file.path(dir, 'screenmill-queries.csv', fsep = '/'))
 
+        keep_treatment_ids <- c('', vars$tbl$treatment_id)
         treatments %>%
-          filter(treatment_id %in% c('', vars$tbl$treatment_id)) %>%
+          filter(treatment_id %in% keep_treatment_ids) %>%
           write_csv(file.path(dir, 'screenmill-treatments.csv', fsep = '/'))
 
+        keep_media_ids <- c('', vars$tbl$media_id)
         media %>%
-          filter(media_id %in% c('', vars$tbl$media_id)) %>%
+          filter(media_id %in% keep_media_ids) %>%
           write_csv(file.path(dir, 'screenmill-media.csv', fsep = '/'))
 
+        keep_keys <- c('', vars$tbl$strain_collection_id)
         strain_collection_keys %>%
-          filter(strain_collection_id %in% c('', vars$tbl$strain_collection_id)) %>%
+          filter(strain_collection_id %in% keep_keys) %>%
           collect %>%
           write_csv(file.path(dir, 'screenmill-collection-keys.csv'))
       }
