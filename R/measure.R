@@ -87,6 +87,12 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
         fine    <- with(crop, rotated[ fine_l:fine_r, fine_t:fine_b ])
         if (crop$invert) fine <- 1 - fine
 
+        # Background threshold is midpoint between foregroun
+        clusters <- kmeans(as.vector(fine), centers = 2)$centers
+        fg <- max(clusters)
+        bg <- min(clusters)
+        bg_thresh <- mean(clusters)
+
         # Save cropped plate in desired format
         if (save.plates) {
           target <- paste0(dir, '/plates/')
@@ -101,24 +107,9 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
         }
 
         # ---- Measure colonies ----
-        grid <-
-          # Identify corner intensities
-          filter(grids, plate_id == p) %>%
-          mutate(
-            tl = fine[as.matrix(cbind(l, t))],
-            tr = fine[as.matrix(cbind(r, t))],
-            bl = fine[as.matrix(cbind(l, b))],
-            br = fine[as.matrix(cbind(r, b))],
-            # Background is average of corner pixels that are below max.background
-            background = apply(cbind(tl, tr, bl, br), 1, function(x) {
-              corners <- ifelse(x > max.background, NA, x)
-              if (all(is.na(corners))) return(NA) else return(mean(corners, na.rm = T))
-            }),
-            # Replace NAs with mean background
-            background = ifelse(is.na(background), mean(background, na.rm = T), background)
-          )
+        grid <- filter(grids, plate_id == p)
 
-        result    <- with(grid, measureColonies(fine, l, r, t, b, background))
+        result    <- with(grid, measureColonies(fine, l, r, t, b, background, bg_thresh))
         grid$size <- result$measurements
 
         # Save colonies in desired format
@@ -131,7 +122,7 @@ measure <- function(dir = '.', overwrite = F, save.plates = F, save.colonies = T
         grid %>%
           select(
             plate_id, strain_collection_id, plate, row, column, replicate,
-            colony_row, colony_col, colony_num, background, size
+            colony_row, colony_col, colony_num, size
           )
       }, mc.cores = cores) %>%
       bind_rows
@@ -147,4 +138,10 @@ measure_addin <- function() {
   message('Choose a file in the directory of images you wish to process.')
   dir <- dirname(file.choose())
   measure(dir, overwrite = TRUE)
+}
+
+background <- function(m, thresh) {
+  m <- as.vector(m)
+  bg <- m[which(m < thresh)]
+  mean(bg)
 }

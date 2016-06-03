@@ -4,7 +4,7 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-List measureColonies( NumericMatrix img, NumericVector l, NumericVector r, NumericVector t, NumericVector b, NumericVector bg ) {
+List measureColonies( NumericMatrix img, NumericVector l, NumericVector r, NumericVector t, NumericVector b, Function background, NumericVector thresh ) {
   int n = l.size();
   NumericVector measurements(n);
   List colonies(n);
@@ -12,10 +12,20 @@ List measureColonies( NumericMatrix img, NumericVector l, NumericVector r, Numer
   for (int i = 0; i < n; ++i) {
     NumericMatrix::Sub sub = img( Range(l[i] - 1, r[i] - 1), Range(t[i] - 1, b[i] - 1) );
     NumericMatrix colony(sub);
-    NumericMatrix colonybg(colony - bg[i]); // subtract background
+    NumericVector bg = background(colony, thresh[0]);
+    NumericMatrix colonybg(colony - bg[0]); // subtract background
+
+    // Replace values less than 0.1 with 0
+    int xsize = colonybg.nrow() * colonybg.ncol();
+    for (int i = 0; i < xsize; i++) {
+      if (colonybg[i] < 0.03) {
+        colonybg[i] = 0;
+      }
+    }
+
+    // Save this colony matrix and its sum
     colonies[i] = colonybg;
     measurements[i] = Rcpp::sum(colonybg);
-    if (measurements[i] < 0) measurements[i] = 0; // set 0 as minimum measurement
   }
 
   return List::create(_["measurements"] = measurements, _["colonies"] = colonies);
