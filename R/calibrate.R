@@ -412,6 +412,8 @@ locate_grid <- function(img, radius, key) {
       r = x + radius,
       t = y - radius,
       b = y + radius,
+      x = as.integer(x),
+      y = as.integer(y),
       # Fix edges if radius is out of bounds of image
       l = as.integer(round(ifelse(l < 1, 1, l))),
       r = as.integer(round(ifelse(r > nrow(img), nrow(img), r))),
