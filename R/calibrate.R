@@ -134,6 +134,7 @@ calibrate_addin <- function() {
 # @param grd path to grid calibration output
 #
 #' @importFrom readr write_csv
+#' @importFrom tibble rownames_to_column
 
 calibrate_template <- function(template, annotation, key, thresh, invert, rough_pad,
                                fine_pad, rotate, range, step, display, crp, grd, save_plate) {
@@ -219,7 +220,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
           rep_df <-
             (one_mat %x% matrix(1:replicates, byrow = T, ncol = sqrt_rep)) %>%
             as.data.frame %>%
-            add_rownames('colony_row') %>%
+            tibble::rownames_to_column('colony_row') %>%
             gather('colony_col', 'replicate', starts_with('V')) %>%
             mutate(
               colony_row = as.integer(colony_row),
@@ -229,7 +230,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
           col_df <-
             matrix(rep(key_cols, each = n_rows * replicates), ncol = n_cols * sqrt_rep) %>%
             as.data.frame %>%
-            add_rownames('colony_row') %>%
+            tibble::rownames_to_column('colony_row') %>%
             gather('colony_col', 'column', starts_with('V')) %>%
             mutate(
               colony_row = as.integer(colony_row),
@@ -239,7 +240,7 @@ calibrate_template <- function(template, annotation, key, thresh, invert, rough_
           row_df <-
             matrix(rep(key_rows, each = n_cols * replicates), nrow = n_rows * sqrt_rep, byrow = T) %>%
             as.data.frame %>%
-            add_rownames('colony_row') %>%
+            tibble::rownames_to_column('colony_row') %>%
             gather('colony_col', 'row', starts_with('V')) %>%
             mutate(
               colony_row = as.integer(colony_row),
