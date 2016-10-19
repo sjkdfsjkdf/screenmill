@@ -29,3 +29,6 @@ install.packages('devtools', dependencies = T)
 # Install the latest version of screenmill
 devtools::install_github('EricEdwardBryant/screenmill')
 ```
+
+This is awesome!
+
